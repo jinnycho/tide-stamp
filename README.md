@@ -1,4 +1,4 @@
-# TideStamp
+# tide stamp
 
 A small app that reminds you to do important repetitive things you forget to do.
 
