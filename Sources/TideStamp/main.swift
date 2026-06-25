@@ -12,9 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isShowingReminderDot = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let reminderTimer = ReminderTimer { [weak self] in
-            self?.showReminderDot()
-        }
+        let reminderTimer = ReminderTimer()
         self.reminderTimer = reminderTimer
 
         // ContentView owns the small "hi" UI. AppDelegate owns popover placement
@@ -55,6 +53,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.reminderTimer?.restart(with: items)
             }
             .store(in: &cancellables)
+
+        reminderTimer.$dueItemIDs
+            .receive(on: RunLoop.main)
+            .sink { [weak self] dueItemIDs in
+                self?.isShowingReminderDot = !dueItemIDs.isEmpty
+                self?.updateStatusItemBadge()
+            }
+            .store(in: &cancellables)
     }
 
     @objc private func togglePopover() {
@@ -62,9 +68,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let button = statusItem?.button else {
             return
         }
-
-        isShowingReminderDot = false
-        updateStatusItemBadge()
 
         if homePopover.isShown {
             settingsPopover.performClose(nil)
@@ -92,13 +95,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             of: homeView,
             preferredEdge: .maxX
         )
-    }
-
-    private func showReminderDot() {
-        DispatchQueue.main.async { [weak self] in
-            self?.isShowingReminderDot = true
-            self?.updateStatusItemBadge()
-        }
     }
 
     private func updateStatusItemBadge() {

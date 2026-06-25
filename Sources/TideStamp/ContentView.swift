@@ -33,24 +33,15 @@ private struct HomeView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if visibleItems.isEmpty {
-                Text("No reminders")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List(visibleItems) { item in
-                    HStack {
-                        Text(item.title)
-                            .lineLimit(1)
+            TabView {
+                TodoListView(items: dueItems, reminderTimer: reminderTimer)
+                    .tabItem { Text("Todo") }
 
-                        Spacer()
-
-                        Text(timeRemainingText(for: item))
-                            .font(.system(.body, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 2)
-                }
+                TickingListView(
+                    items: visibleItems,
+                    timeRemainingText: timeRemainingText
+                )
+                .tabItem { Text("Ticking") }
             }
 
             Button(action: onSettingsButtonClicked) {
@@ -60,6 +51,12 @@ private struct HomeView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var dueItems: [ReminderItem] {
+        visibleItems.filter { item in
+            reminderTimer.dueItemIDs.contains(item.id)
+        }
     }
 
     private func timeRemainingText(for item: ReminderItem) -> String {
@@ -77,5 +74,59 @@ private struct HomeView: View {
         }
 
         return String(format: "%02d:%02d", minutes, remainingSeconds)
+    }
+}
+
+private struct TodoListView: View {
+    let items: [ReminderItem]
+    @ObservedObject var reminderTimer: ReminderTimer
+
+    var body: some View {
+        if items.isEmpty {
+            Text("Nothing due")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            List(items) { item in
+                Button {
+                    reminderTimer.completeTodo(for: item)
+                } label: {
+                    HStack {
+                        Image(systemName: "circle")
+                        Text(item.title)
+                            .lineLimit(1)
+                    }
+                }
+                .buttonStyle(.plain)
+                .padding(.vertical, 2)
+            }
+        }
+    }
+}
+
+private struct TickingListView: View {
+    let items: [ReminderItem]
+    let timeRemainingText: (ReminderItem) -> String
+
+    var body: some View {
+        if items.isEmpty {
+            Text("No reminders")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            List(items) { item in
+                HStack {
+                    Text(item.title)
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    Text(timeRemainingText(item))
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 2)
+            }
+        }
     }
 }
