@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -6,17 +7,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let homePopover = NSPopover()
     private let settingsPopover = NSPopover()
     private let settingsStore = ReminderSettingsStore()
+    private var reminderTimer: ReminderTimer?
+    private var cancellables = Set<AnyCancellable>()
+    private var isShowingReminderDot = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let reminderTimer = ReminderTimer()
+        self.reminderTimer = reminderTimer
+
         // ContentView owns the small "hi" UI. AppDelegate owns popover placement
         // because popovers are an AppKit concept, not a SwiftUI concept.
-        let contentView = ContentView { [weak self] in
+        let contentView = ContentView(
+            store: settingsStore,
+            reminderTimer: reminderTimer
+        ) { [weak self] in
             self?.toggleSettingsPopover()
         }
 
-        // The home popover stays small forever; opening settings should not
-        // resize or visually stretch this screen.
-        homePopover.contentSize = NSSize(width: 180, height: 110)
+        homePopover.contentSize = NSSize(width: 280, height: 220)
         homePopover.behavior = .transient
         homePopover.contentViewController = NSHostingController(rootView: contentView)
 
@@ -28,11 +36,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // NSStatusItem is the actual button that appears in the macOS menu bar.
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = "Tide"
+        statusItem.button?.imagePosition = .imageOnly
         statusItem.button?.target = self
         statusItem.button?.action = #selector(togglePopover)
 
         self.statusItem = statusItem
+        updateStatusItemBadge()
+
+        reminderTimer.restart(with: settingsStore.items)
+
+        settingsStore.$items
+            .receive(on: RunLoop.main)
+            .sink { [weak self] items in
+                self?.isShowingReminderDot = false
+                self?.updateStatusItemBadge()
+                self?.reminderTimer?.restart(with: items)
+            }
+            .store(in: &cancellables)
+
+        reminderTimer.$dueItemIDs
+            .receive(on: RunLoop.main)
+            .sink { [weak self] dueItemIDs in
+                self?.isShowingReminderDot = !dueItemIDs.isEmpty
+                self?.updateStatusItemBadge()
+            }
+            .store(in: &cancellables)
     }
 
     @objc private func togglePopover() {
@@ -67,6 +95,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             of: homeView,
             preferredEdge: .maxX
         )
+    }
+
+    private func updateStatusItemBadge() {
+        statusItem?.button?.image = StatusItemBadge.image(isShowingDot: isShowingReminderDot)
+        statusItem?.button?.toolTip = isShowingReminderDot ? "Reminder due" : nil
     }
 }
 
