@@ -123,14 +123,66 @@ private struct ReminderItemRow: View {
                     Text("Every")
                         .foregroundStyle(.secondary)
 
-                    Stepper(value: $item.intervalMinutes, in: 1...1440, step: 5) {
-                        Text("\(item.intervalMinutes) min")
+                    Stepper(
+                        value: intervalStepperBinding,
+                        in: 1...1440,
+                        step: 5
+                    ) {
+                        HStack(spacing: 4) {
+                            TextField(
+                                "Minutes",
+                                value: $item.intervalMinutes,
+                                format: .number
+                            )
+                            .frame(width: 40)
+                            .multilineTextAlignment(.trailing)
                             .monospacedDigit()
+                            .disabled(!isEditing)
+                            .onChange(of: item.intervalMinutes) { newValue in
+                                item.intervalMinutes = min(max(newValue, 1), 1440)
+                            }
+
+                            Text("min")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .disabled(!isEditing)
                 }
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private var intervalStepperBinding: Binding<Int> {
+        Binding(
+            get: {
+                item.intervalMinutes
+            },
+            set: { newValue in
+                if newValue > item.intervalMinutes {
+                    item.intervalMinutes = nextInterval(from: item.intervalMinutes)
+                } else {
+                    item.intervalMinutes = previousInterval(from: item.intervalMinutes)
+                }
+            }
+        )
+    }
+
+    private func previousInterval(from value: Int) -> Int {
+        if value <= 5 {
+            return 1
+        }
+
+        let previousMultipleOfFive = ((value - 1) / 5) * 5
+        return max(previousMultipleOfFive, 1)
+    }
+
+    private func nextInterval(from value: Int) -> Int {
+        if value < 5 {
+            return 5
+        }
+
+        let nextMultipleOfFive = ((value / 5) + 1) * 5
+        return min(nextMultipleOfFive, 1440)
     }
 }
