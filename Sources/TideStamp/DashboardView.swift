@@ -75,7 +75,7 @@ struct DashboardView: View {
             Text(selectedDate.formatted(date: .complete, time: .omitted))
                 .font(.headline)
 
-            let items = achievementStore.trackedItems(activeOn: selectedDate)
+            let items = achievementStore.trackedItemsWithProgress(on: selectedDate)
 
             if items.isEmpty {
                 Text("No reminder items")
