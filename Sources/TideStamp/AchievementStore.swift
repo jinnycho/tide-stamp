@@ -82,12 +82,19 @@ final class AchievementStore: ObservableObject {
         }
     }
 
-    func trackedItems(activeOn date: Date) -> [TrackedReminderItem] {
+    func trackedItemsWithProgress(on date: Date) -> [TrackedReminderItem] {
         let dayKey = Self.dayKey(for: date, calendar: calendar)
+        let itemIDsWithProgress = Set(
+            progressByDay[dayKey, default: [:]]
+                .filter { _, progress in
+                    progress.released > 0 || progress.completed > 0
+                }
+                .map(\.key)
+        )
 
         return itemCatalog.values
             .filter { item in
-                item.firstActiveDay <= dayKey && (item.deletedDay == nil || dayKey < item.deletedDay!)
+                itemIDsWithProgress.contains(item.id.uuidString)
             }
             .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
     }
