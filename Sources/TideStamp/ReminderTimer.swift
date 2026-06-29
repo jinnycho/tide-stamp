@@ -48,6 +48,10 @@ final class ReminderTimer: ObservableObject {
         dueItemIDs.remove(item.id)
     }
 
+    func refresh(item: ReminderItem) {
+        dueDates[item.id] = Date().addingTimeInterval(TimeInterval(item.intervalMinutes * 60))
+    }
+
     func secondsRemaining(for item: ReminderItem) -> Int? {
         guard let dueDate = dueDates[item.id] else {
             return nil

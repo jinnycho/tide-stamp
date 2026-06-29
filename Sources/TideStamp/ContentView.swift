@@ -49,7 +49,8 @@ private struct HomeView: View {
 
                 TickingListView(
                     items: visibleItems,
-                    timeRemainingText: timeRemainingText
+                    timeRemainingText: timeRemainingText,
+                    onRefresh: reminderTimer.refresh
                 )
                 .tabItem { Text("Ticking") }
             }
@@ -125,6 +126,7 @@ private struct TodoListView: View {
 private struct TickingListView: View {
     let items: [ReminderItem]
     let timeRemainingText: (ReminderItem) -> String
+    let onRefresh: (ReminderItem) -> Void
 
     var body: some View {
         if items.isEmpty {
@@ -142,6 +144,13 @@ private struct TickingListView: View {
                     Text(timeRemainingText(item))
                         .font(.system(.body, design: .monospaced))
                         .foregroundStyle(.secondary)
+
+                    Button {
+                        onRefresh(item)
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderless)
                 }
                 .padding(.vertical, 2)
             }
