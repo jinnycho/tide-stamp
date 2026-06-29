@@ -57,12 +57,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateStatusItemBadge()
 
         reminderTimer.restart(with: settingsStore.items)
+        achievementStore.syncDeletedItems(currentItems: settingsStore.items)
 
         settingsStore.$items
             .receive(on: RunLoop.main)
             .sink { [weak self] items in
                 self?.isShowingReminderDot = false
                 self?.updateStatusItemBadge()
+                self?.achievementStore.syncDeletedItems(currentItems: items)
                 self?.reminderTimer?.restart(with: items)
             }
             .store(in: &cancellables)

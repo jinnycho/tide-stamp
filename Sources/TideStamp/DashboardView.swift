@@ -75,7 +75,7 @@ struct DashboardView: View {
             Text(selectedDate.formatted(date: .complete, time: .omitted))
                 .font(.headline)
 
-            let items = activeItems
+            let items = achievementStore.trackedItems(activeOn: selectedDate)
 
             if items.isEmpty {
                 Text("No reminder items")
@@ -102,12 +102,6 @@ struct DashboardView: View {
             }
         }
         .frame(height: 110)
-    }
-
-    private var activeItems: [ReminderItem] {
-        settingsStore.items.filter { item in
-            !item.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
     }
 
     private var firstDayOfDisplayedYear: Date {
@@ -141,7 +135,7 @@ struct DashboardView: View {
         return .secondary.opacity(0.35)
     }
 
-    private func progressText(for item: ReminderItem) -> String {
+    private func progressText(for item: TrackedReminderItem) -> String {
         let progress = achievementStore.progress(for: item, on: selectedDate)
         return "\(progress.completed)/\(progress.released)"
     }
