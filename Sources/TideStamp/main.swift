@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let homePopover = NSPopover()
     private let settingsPopover = NSPopover()
     private let dashboardPopover = NSPopover()
+    private var reminderBurstPanel: NSPanel?
     private let settingsStore = ReminderSettingsStore()
     private let achievementStore = AchievementStore()
     private var reminderTimer: ReminderTimer?
@@ -72,8 +73,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         reminderTimer.$dueItemIDs
             .receive(on: RunLoop.main)
             .sink { [weak self] dueItemIDs in
+                let wasShowingReminderDot = self?.isShowingReminderDot ?? false
+
                 self?.isShowingReminderDot = !dueItemIDs.isEmpty
                 self?.updateStatusItemBadge()
+
+                if !wasShowingReminderDot && !dueItemIDs.isEmpty {
+                    self?.showReminderBurst()
+                }
             }
             .store(in: &cancellables)
     }
@@ -135,6 +142,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             of: homeView,
             preferredEdge: .maxX
         )
+    }
+
+    private func showReminderBurst() {
+        guard let button = statusItem?.button else {
+            return
+        }
+
+        let panelSize = NSSize(width: 68, height: 68)
+        let buttonFrameOnScreen = button.window?.convertToScreen(button.convert(button.bounds, to: nil)) ?? .zero
+        let panelOrigin = NSPoint(
+            x: buttonFrameOnScreen.midX - panelSize.width / 2,
+            y: buttonFrameOnScreen.minY - panelSize.height - 4
+        )
+
+        reminderBurstPanel?.close()
+
+        let panel = NSPanel(
+            contentRect: NSRect(origin: panelOrigin, size: panelSize),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = false
+        panel.level = .statusBar
+        panel.ignoresMouseEvents = true
+        panel.collectionBehavior = [.canJoinAllSpaces, .transient]
+
+        let hostingView = NSHostingView(rootView: ReminderBurstView())
+        hostingView.frame = NSRect(origin: .zero, size: panelSize)
+        hostingView.wantsLayer = true
+        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
+        panel.contentView = hostingView
+        panel.orderFrontRegardless()
+
+        reminderBurstPanel = panel
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            self?.reminderBurstPanel?.close()
+            self?.reminderBurstPanel = nil
+        }
     }
 
     private func updateStatusItemBadge() {
