@@ -7,6 +7,11 @@ final class ReminderTimer: ObservableObject {
 
     private var tickTimer: Timer?
     private var itemsByID: [UUID: ReminderItem] = [:]
+    private let onReminderReleased: (ReminderItem) -> Void
+
+    init(onReminderReleased: @escaping (ReminderItem) -> Void = { _ in }) {
+        self.onReminderReleased = onReminderReleased
+    }
 
     func restart(with items: [ReminderItem]) {
         stop()
@@ -60,6 +65,7 @@ final class ReminderTimer: ObservableObject {
             }
 
             dueItemIDs.insert(id)
+            onReminderReleased(item)
 
             // Once an item is due, roll its next due time forward so the
             // countdown keeps showing the next interval.

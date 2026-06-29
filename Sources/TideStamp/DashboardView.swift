@@ -142,9 +142,8 @@ struct DashboardView: View {
     }
 
     private func progressText(for item: ReminderItem) -> String {
-        let completed = achievementStore.completionCount(for: item, on: selectedDate)
-        let target = max(1, 1440 / max(item.intervalMinutes, 1))
-        return "\(completed)/\(target)"
+        let progress = achievementStore.progress(for: item, on: selectedDate)
+        return "\(progress.completed)/\(progress.released)"
     }
 }
 

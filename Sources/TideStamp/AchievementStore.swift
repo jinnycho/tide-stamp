@@ -1,14 +1,19 @@
 import Foundation
 
+struct AchievementProgress: Codable {
+    var released: Int
+    var completed: Int
+}
+
 final class AchievementStore: ObservableObject {
-    // Shape: ["2026-06-28": ["item-uuid": completionCount]]
-    @Published private(set) var completionsByDay: [String: [String: Int]] {
+    // Shape: ["2026-06-28": ["item-uuid": { released, completed }]]
+    @Published private(set) var progressByDay: [String: [String: AchievementProgress]] {
         didSet {
             save()
         }
     }
 
-    private let storageKey = "achievementCompletionsByDay"
+    private let storageKey = "achievementProgressByDay"
     private let userDefaults: UserDefaults
     private let calendar: Calendar
 
@@ -17,31 +22,49 @@ final class AchievementStore: ObservableObject {
         self.calendar = calendar
 
         if let data = userDefaults.data(forKey: storageKey),
-           let completions = try? JSONDecoder().decode([String: [String: Int]].self, from: data) {
-            self.completionsByDay = completions
+           let progress = try? JSONDecoder().decode([String: [String: AchievementProgress]].self, from: data) {
+            self.progressByDay = progress
         } else {
-            self.completionsByDay = [:]
+            self.progressByDay = [:]
+        }
+    }
+
+    func recordRelease(for item: ReminderItem, on date: Date = Date()) {
+        updateProgress(for: item, on: date) { progress in
+            progress.released += 1
         }
     }
 
     func recordCompletion(for item: ReminderItem, on date: Date = Date()) {
-        let dayKey = Self.dayKey(for: date, calendar: calendar)
-        let itemKey = item.id.uuidString
-        completionsByDay[dayKey, default: [:]][itemKey, default: 0] += 1
+        updateProgress(for: item, on: date) { progress in
+            progress.completed += 1
+        }
     }
 
-    func completionCount(for item: ReminderItem, on date: Date) -> Int {
+    func progress(for item: ReminderItem, on date: Date) -> AchievementProgress {
         let dayKey = Self.dayKey(for: date, calendar: calendar)
-        return completionsByDay[dayKey]?[item.id.uuidString] ?? 0
+        return progressByDay[dayKey]?[item.id.uuidString] ?? AchievementProgress(released: 0, completed: 0)
     }
 
     func hasCompletions(on date: Date) -> Bool {
         let dayKey = Self.dayKey(for: date, calendar: calendar)
-        return completionsByDay[dayKey]?.values.contains { $0 > 0 } ?? false
+        return progressByDay[dayKey]?.values.contains { $0.completed > 0 } ?? false
+    }
+
+    private func updateProgress(
+        for item: ReminderItem,
+        on date: Date,
+        update: (inout AchievementProgress) -> Void
+    ) {
+        let dayKey = Self.dayKey(for: date, calendar: calendar)
+        let itemKey = item.id.uuidString
+        var progress = progressByDay[dayKey]?[itemKey] ?? AchievementProgress(released: 0, completed: 0)
+        update(&progress)
+        progressByDay[dayKey, default: [:]][itemKey] = progress
     }
 
     private func save() {
-        guard let data = try? JSONEncoder().encode(completionsByDay) else {
+        guard let data = try? JSONEncoder().encode(progressByDay) else {
             return
         }
 

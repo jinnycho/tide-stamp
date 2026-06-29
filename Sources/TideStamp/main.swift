@@ -14,7 +14,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isShowingReminderDot = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let reminderTimer = ReminderTimer()
+        let reminderTimer = ReminderTimer { [achievementStore] item in
+            achievementStore.recordRelease(for: item)
+        }
         self.reminderTimer = reminderTimer
 
         // ContentView owns the small "hi" UI. AppDelegate owns popover placement
