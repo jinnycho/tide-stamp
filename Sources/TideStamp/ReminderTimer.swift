@@ -7,21 +7,40 @@ final class ReminderTimer: ObservableObject {
 
     private var tickTimer: Timer?
     private var itemsByID: [UUID: ReminderItem] = [:]
+    private let onReminderReleased: (ReminderItem) -> Void
+
+    init(onReminderReleased: @escaping (ReminderItem) -> Void = { _ in }) {
+        self.onReminderReleased = onReminderReleased
+    }
 
     func restart(with items: [ReminderItem]) {
-        stop()
-
         let activeItems = items.filter { item in
             let title = item.title.trimmingCharacters(in: .whitespacesAndNewlines)
             return !title.isEmpty
         }
+        let activeIDs = Set(activeItems.map(\.id))
+        let previousItemsByID = itemsByID
+        let previousDueDates = dueDates
 
         now = Date()
-        dueItemIDs = dueItemIDs.intersection(activeItems.map(\.id))
+        dueItemIDs = dueItemIDs.intersection(activeIDs)
         itemsByID = Dictionary(uniqueKeysWithValues: activeItems.map { ($0.id, $0) })
-        dueDates = Dictionary(uniqueKeysWithValues: activeItems.map { item in
-            (item.id, now.addingTimeInterval(TimeInterval(item.intervalMinutes * 60)))
-        })
+        dueDates = Dictionary(
+            uniqueKeysWithValues: activeItems.map { item in
+                let previousItem = previousItemsByID[item.id]
+                let previousDueDate = previousDueDates[item.id]
+
+                if previousItem?.intervalMinutes == item.intervalMinutes,
+                   let previousDueDate {
+                    return (item.id, previousDueDate)
+                }
+
+                return (item.id, nextDueDate(for: item))
+            }
+        )
+
+        tickTimer?.invalidate()
+        tickTimer = nil
 
         guard !activeItems.isEmpty else {
             return
@@ -30,6 +49,10 @@ final class ReminderTimer: ObservableObject {
         tickTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.tick()
         }
+    }
+
+    private func nextDueDate(for item: ReminderItem) -> Date {
+        Date().addingTimeInterval(TimeInterval(item.intervalMinutes * 60))
     }
 
     func stop() {
@@ -41,6 +64,10 @@ final class ReminderTimer: ObservableObject {
 
     func completeTodo(for item: ReminderItem) {
         dueItemIDs.remove(item.id)
+    }
+
+    func refresh(item: ReminderItem) {
+        dueDates[item.id] = nextDueDate(for: item)
     }
 
     func secondsRemaining(for item: ReminderItem) -> Int? {
@@ -60,6 +87,7 @@ final class ReminderTimer: ObservableObject {
             }
 
             dueItemIDs.insert(id)
+            onReminderReleased(item)
 
             // Once an item is due, roll its next due time forward so the
             // countdown keeps showing the next interval.
