@@ -3,15 +3,19 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject var store: ReminderSettingsStore
     @ObservedObject var reminderTimer: ReminderTimer
+    @ObservedObject var achievementStore: AchievementStore
 
     // AppKit owns popover placement, so SwiftUI reports the button click upward.
     let onSettingsButtonClicked: () -> Void
+    let onDashboardButtonClicked: () -> Void
 
     var body: some View {
         HomeView(
             items: store.items,
             reminderTimer: reminderTimer,
-            onSettingsButtonClicked: onSettingsButtonClicked
+            achievementStore: achievementStore,
+            onSettingsButtonClicked: onSettingsButtonClicked,
+            onDashboardButtonClicked: onDashboardButtonClicked
         )
         .frame(width: 280, height: 220)
     }
@@ -20,10 +24,12 @@ struct ContentView: View {
 private struct HomeView: View {
     let items: [ReminderItem]
     @ObservedObject var reminderTimer: ReminderTimer
+    @ObservedObject var achievementStore: AchievementStore
 
     // This callback keeps HomeView simple: it does not need to know whether
     // settings appears in another popover, window, or future navigation screen.
     let onSettingsButtonClicked: () -> Void
+    let onDashboardButtonClicked: () -> Void
 
     private var visibleItems: [ReminderItem] {
         items.filter { item in
@@ -34,7 +40,11 @@ private struct HomeView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             TabView {
-                TodoListView(items: dueItems, reminderTimer: reminderTimer)
+                TodoListView(
+                    items: dueItems,
+                    reminderTimer: reminderTimer,
+                    achievementStore: achievementStore
+                )
                     .tabItem { Text("Todo") }
 
                 TickingListView(
@@ -44,8 +54,14 @@ private struct HomeView: View {
                 .tabItem { Text("Ticking") }
             }
 
-            Button(action: onSettingsButtonClicked) {
-                Label("Settings", systemImage: "gearshape")
+            HStack {
+                Button(action: onDashboardButtonClicked) {
+                    Label("Dashboard", systemImage: "chart.dots.scatter")
+                }
+
+                Button(action: onSettingsButtonClicked) {
+                    Label("Settings", systemImage: "gearshape")
+                }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -80,6 +96,7 @@ private struct HomeView: View {
 private struct TodoListView: View {
     let items: [ReminderItem]
     @ObservedObject var reminderTimer: ReminderTimer
+    @ObservedObject var achievementStore: AchievementStore
 
     var body: some View {
         if items.isEmpty {
@@ -89,6 +106,7 @@ private struct TodoListView: View {
         } else {
             List(items) { item in
                 Button {
+                    achievementStore.recordCompletion(for: item)
                     reminderTimer.completeTodo(for: item)
                 } label: {
                     HStack {
