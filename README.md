@@ -8,3 +8,19 @@ A small app that reminds you to do important repetitive things you forget to do.
 ```
 swift run TideStamp
 ```
+
+## Data Management 
+1. Current reminder settings
+- key: `reminderItems`
+- stored: id, title, intervalMinutes
+- To delete: `defaults delete TideStamp reminderItems`
+
+2. Dashboard progress
+- key: `achievementProgressByDay`
+- stored: released, completed
+- To delete: `defaults delete TideStamp achievementProgressByDay`
+
+3. Tracked item history
+- key: `trackedReminderItems`
+- stored: id, title, intervalMinutes, firstActiveDay, deletedDay
+- To delete: `defaults delete TideStamp trackedReminderItems`
