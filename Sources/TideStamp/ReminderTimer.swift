@@ -7,6 +7,8 @@ final class ReminderTimer: ObservableObject {
 
     private var tickTimer: Timer?
     private var itemsByID: [UUID: ReminderItem] = [:]
+    private var lastTickDate = Date()
+    private let sleepGapThreshold: TimeInterval = 15
     private let onReminderReleased: (ReminderItem) -> Void
 
     init(onReminderReleased: @escaping (ReminderItem) -> Void = { _ in }) {
@@ -23,6 +25,7 @@ final class ReminderTimer: ObservableObject {
         let previousDueDates = dueDates
 
         now = Date()
+        lastTickDate = now
         dueItemIDs = dueItemIDs.intersection(activeIDs)
         itemsByID = Dictionary(uniqueKeysWithValues: activeItems.map { ($0.id, $0) })
         dueDates = Dictionary(
@@ -68,6 +71,7 @@ final class ReminderTimer: ObservableObject {
 
     func refresh(item: ReminderItem) {
         dueDates[item.id] = nextDueDate(for: item)
+        lastTickDate = Date()
     }
 
     func secondsRemaining(for item: ReminderItem) -> Int? {
@@ -79,7 +83,23 @@ final class ReminderTimer: ObservableObject {
     }
 
     private func tick() {
-        now = Date()
+        let currentDate = Date()
+        let elapsedSinceLastTick = currentDate.timeIntervalSince(lastTickDate)
+
+        if elapsedSinceLastTick > sleepGapThreshold {
+            // Timer callbacks pause while the laptop sleeps. When the app wakes,
+            // shift due dates forward by the inactive gap so we only count
+            // reminders that had a chance to appear while the laptop was awake.
+            dueDates = dueDates.mapValues { dueDate in
+                dueDate.addingTimeInterval(elapsedSinceLastTick)
+            }
+            now = currentDate
+            lastTickDate = currentDate
+            return
+        }
+
+        now = currentDate
+        lastTickDate = currentDate
 
         for (id, dueDate) in dueDates where dueDate <= now {
             guard let item = itemsByID[id] else {
