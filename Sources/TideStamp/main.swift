@@ -15,8 +15,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isShowingReminderDot = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let reminderTimer = ReminderTimer { [achievementStore] item in
-            achievementStore.recordRelease(for: item)
+        let reminderTimer = ReminderTimer { [weak self] item in
+            // This callback fires for every reminder release, even when an older
+            // due item is still unchecked. Keep the large burst tied to the
+            // release event itself instead of the aggregate due/non-due state.
+            self?.achievementStore.recordRelease(for: item)
+            self?.showReminderBurst()
         }
         self.reminderTimer = reminderTimer
 
@@ -73,14 +77,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         reminderTimer.$dueItemIDs
             .receive(on: RunLoop.main)
             .sink { [weak self] dueItemIDs in
-                let wasShowingReminderDot = self?.isShowingReminderDot ?? false
-
+                // The menu-bar dot represents whether anything is currently due.
+                // The large reminder burst is handled by ReminderTimer's release
+                // callback so repeated releases still animate while todos remain.
                 self?.isShowingReminderDot = !dueItemIDs.isEmpty
                 self?.updateStatusItemBadge()
-
-                if !wasShowingReminderDot && !dueItemIDs.isEmpty {
-                    self?.showReminderBurst()
-                }
             }
             .store(in: &cancellables)
     }
@@ -114,12 +115,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         dashboardPopover.performClose(nil)
 
-        // Anchor settings to the right edge of the home popover. This makes it
+        // Anchor settings to the left edge of the home popover. This makes it
         // feel like a separate nearby screen instead of one larger shared view.
         settingsPopover.show(
             relativeTo: homeView.bounds,
             of: homeView,
-            preferredEdge: .maxX
+            preferredEdge: .minX
         )
     }
 
@@ -137,10 +138,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         settingsPopover.performClose(nil)
 
+        let positioningRect = homeView.bounds.offsetBy(dx: -180, dy: 0)
+
         dashboardPopover.show(
-            relativeTo: homeView.bounds,
+            relativeTo: positioningRect,
             of: homeView,
-            preferredEdge: .maxX
+            preferredEdge: .minX
         )
     }
 
