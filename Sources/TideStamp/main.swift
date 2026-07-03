@@ -183,7 +183,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         reminderBurstPanel = panel
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + ReminderBurstView.animationDuration) { [weak self] in
             self?.reminderBurstPanel?.close()
             self?.reminderBurstPanel = nil
         }

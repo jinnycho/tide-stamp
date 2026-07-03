@@ -8,6 +8,11 @@ let package = Package(
         .macOS(.v13)
     ],
     targets: [
-        .executableTarget(name: "TideStamp")
+        .executableTarget(
+            name: "TideStamp",
+            path: ".",
+            sources: ["Sources/TideStamp"],
+            resources: [.process("Assets")]
+        )
     ]
 )

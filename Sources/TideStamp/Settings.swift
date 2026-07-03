@@ -125,7 +125,7 @@ private struct ReminderItemRow: View {
 
                     Stepper(
                         value: intervalStepperBinding,
-                        in: 1...1440,
+                        in: 0...1440,
                         step: 5
                     ) {
                         HStack(spacing: 4) {
@@ -139,7 +139,7 @@ private struct ReminderItemRow: View {
                             .monospacedDigit()
                             .disabled(!isEditing)
                             .onChange(of: item.intervalMinutes) { newValue in
-                                item.intervalMinutes = min(max(newValue, 1), 1440)
+                                item.intervalMinutes = min(max(newValue, 0), 1440)
                             }
 
                             Text("min")
@@ -169,12 +169,12 @@ private struct ReminderItemRow: View {
     }
 
     private func previousInterval(from value: Int) -> Int {
-        if value <= 5 {
-            return 1
+        if value <= 1 {
+            return 0
         }
 
         let previousMultipleOfFive = ((value - 1) / 5) * 5
-        return max(previousMultipleOfFive, 1)
+        return max(previousMultipleOfFive, 0)
     }
 
     private func nextInterval(from value: Int) -> Int {
