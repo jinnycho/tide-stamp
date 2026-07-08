@@ -34,7 +34,8 @@ final class ReminderTimer: ObservableObject {
                 let previousDueDate = previousDueDates[item.id]
 
                 if previousItem?.intervalMinutes == item.intervalMinutes,
-                   let previousDueDate {
+                    let previousDueDate
+                {
                     return (item.id, previousDueDate)
                 }
 
@@ -56,7 +57,8 @@ final class ReminderTimer: ObservableObject {
 
     private func nextDueDate(for item: ReminderItem) -> Date {
         // 0 minutes is a temporary fast interval for testing reminders.
-        Date().addingTimeInterval(item.intervalMinutes == 0 ? 5 : TimeInterval(item.intervalMinutes * 60))
+        Date().addingTimeInterval(
+            item.intervalMinutes == 0 ? 30 : TimeInterval(item.intervalMinutes * 60))
     }
 
     func stop() {
@@ -113,7 +115,8 @@ final class ReminderTimer: ObservableObject {
             // Once an item is due, roll its next due time forward so the
             // countdown keeps showing the next interval.
             // 0 minutes is a temporary fast interval for testing reminders.
-            dueDates[id] = now.addingTimeInterval(item.intervalMinutes == 0 ? 5 : TimeInterval(item.intervalMinutes * 60))
+            dueDates[id] = now.addingTimeInterval(
+                item.intervalMinutes == 0 ? 30 : TimeInterval(item.intervalMinutes * 60))
         }
     }
 }

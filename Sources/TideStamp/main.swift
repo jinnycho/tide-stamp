@@ -152,11 +152,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        let panelSize = NSSize(width: 68, height: 68)
-        let buttonFrameOnScreen = button.window?.convertToScreen(button.convert(button.bounds, to: nil)) ?? .zero
+        let panelSize = NSSize(
+            width: ReminderBurstView.displaySize,
+            height: ReminderBurstView.displaySize
+        )
+        let screenFrame = button.window?.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
+        let topRightMargin: CGFloat = 16
         let panelOrigin = NSPoint(
-            x: buttonFrameOnScreen.midX - panelSize.width / 2,
-            y: buttonFrameOnScreen.minY - panelSize.height - 4
+            // Put the animation near the top-right of the active laptop screen
+            // instead of attaching it to the menu-bar status item.
+            x: screenFrame.maxX - panelSize.width - topRightMargin,
+            y: screenFrame.maxY - panelSize.height - topRightMargin
         )
 
         reminderBurstPanel?.close()
