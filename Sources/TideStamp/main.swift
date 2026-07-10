@@ -49,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsPopover.contentViewController = NSHostingController(
             rootView: SettingsView(store: settingsStore))
 
-        dashboardPopover.contentSize = NSSize(width: 460, height: 470)
+        dashboardPopover.contentSize = NSSize(width: 530, height: 450)
         dashboardPopover.behavior = .transient
         dashboardPopover.contentViewController = NSHostingController(
             rootView: DashboardView(

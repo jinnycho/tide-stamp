@@ -9,11 +9,14 @@ struct DashboardView: View {
     @State private var selectedDate = Date()
 
     private let calendar = Calendar.current
-    private let dayColumns = Array(repeating: GridItem(.fixed(12), spacing: 5), count: 31)
-    private let monthLabelWidth: CGFloat = 14
-    private let rewardIconSize: CGFloat = 21
-    private let dayDotSize: CGFloat = 8
-    private let selectedDayDetailHeight: CGFloat = 99
+    // Flexible columns use the full dashboard width so the reward markers spread
+    // out when the popover gets wider instead of staying packed to the left.
+    private let dayColumns = Array(
+        repeating: GridItem(.flexible(minimum: 16), spacing: 0), count: 31)
+    private let monthLabelWidth: CGFloat = 10
+    private let rewardMarkerSize: CGFloat = 19
+    private let rewardMarkerSlotSize: CGFloat = 20
+    private let selectedDayDetailHeight: CGFloat = 90
 
     // SwiftPM flattens processed resource paths here, so reward1.png is loaded
     // from the bundle root even though the source file lives in Assets/rewards.
@@ -30,21 +33,22 @@ struct DashboardView: View {
     }()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
+        VStack(alignment: .leading, spacing: 6) {
+            // Keep the year controls compact so the dashboard reads as a calendar
+            // first, rather than giving the navigation row the whole popover width.
+            HStack(spacing: 8) {
                 Button {
                     displayedYear -= 1
                     selectedDate = firstDayOfDisplayedYear
                 } label: {
                     Image(systemName: "chevron.left")
                 }
-
-                Spacer()
+                .buttonStyle(.borderless)
+                .frame(width: 22, height: 22)
 
                 Text(String(displayedYear))
                     .font(AppFont.headline)
-
-                Spacer()
+                    .frame(width: 46)
 
                 Button {
                     displayedYear += 1
@@ -52,17 +56,22 @@ struct DashboardView: View {
                 } label: {
                     Image(systemName: "chevron.right")
                 }
+                .buttonStyle(.borderless)
+                .frame(width: 22, height: 22)
             }
+            .frame(maxWidth: .infinity)
 
-            VStack(alignment: .leading, spacing: 7) {
+            // Tight horizontal columns let each row show all 31 reward images
+            // while leaving more of the popover's visual weight in the calendar.
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(monthsInDisplayedYear, id: \.month) { month in
-                    HStack(spacing: 6) {
+                    HStack(spacing: 2) {
                         Text("\(month.month)")
                             .font(AppFont.monthLabel)
                             .foregroundStyle(.secondary)
                             .frame(width: monthLabelWidth, alignment: .trailing)
 
-                        LazyVGrid(columns: dayColumns, alignment: .leading, spacing: 5) {
+                        LazyVGrid(columns: dayColumns, alignment: .leading, spacing: 6) {
                             ForEach(month.days, id: \.self) { date in
                                 Button {
                                     selectedDate = date
@@ -77,12 +86,17 @@ struct DashboardView: View {
                 }
             }
             .padding(.vertical, 2)
+            // The year row and daily detail keep their fixed heights. Any extra
+            // dashboard height is assigned to the reward-image calendar area.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
             Divider()
 
             selectedDayDetail
         }
-        .padding()
+        .padding(.top, 6)
+        .padding(.horizontal, 6)
+        .padding(.bottom, 10)
         .font(AppFont.body)
     }
 
@@ -115,6 +129,7 @@ struct DashboardView: View {
                         }
                     }
                 }
+                .scrollIndicators(.visible)
             }
         }
         .frame(height: selectedDayDetailHeight)
@@ -122,21 +137,51 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func dayMarker(for date: Date) -> some View {
-        if calendar.isDateInToday(date), let rewardImage = Self.todayRewardImage {
+        let padding = markerPadding(for: date)
+        let offset = markerOffset(for: date)
+
+        if let rewardImage = Self.todayRewardImage {
             Image(nsImage: rewardImage)
                 .resizable()
                 .interpolation(.high)
                 .scaledToFit()
-                .frame(width: rewardIconSize, height: rewardIconSize)
-                // Preserve the existing 12pt dashboard grid footprint so one
-                // reward icon does not resize the whole calendar row.
-                .frame(width: 12, height: 12)
+                // The fixed outer slot keeps every calendar cell stable while the
+                // inner padding/offset gives the repeated reward art variation.
+                .frame(width: rewardMarkerSize, height: rewardMarkerSize)
+                .padding(padding)
+                .offset(x: offset.width, y: offset.height)
+                .frame(width: rewardMarkerSlotSize, height: rewardMarkerSlotSize)
         } else {
+            // Fallback keeps the calendar visible if the reward asset is missing.
             Circle()
-                .fill(dotColor(for: date))
-                .frame(width: dayDotSize, height: dayDotSize)
-                .frame(width: 12, height: 12)
+                .fill(Color.secondary.opacity(0.35))
+                .frame(width: rewardMarkerSize, height: rewardMarkerSize)
+                .padding(padding)
+                .offset(x: offset.width, y: offset.height)
+                .frame(width: rewardMarkerSlotSize, height: rewardMarkerSlotSize)
         }
+    }
+
+    private func markerPadding(for date: Date) -> EdgeInsets {
+        let day = calendar.component(.day, from: date)
+
+        // Vary the inner spacing by day number so the repeated reward image feels
+        // less like a perfectly stamped grid, but remains deterministic.
+        return EdgeInsets(
+            top: CGFloat(day % 3),
+            leading: CGFloat((day + 1) % 3),
+            bottom: CGFloat((day + 2) % 3),
+            trailing: CGFloat((day + 3) % 3)
+        )
+    }
+
+    private func markerOffset(for date: Date) -> CGSize {
+        let day = calendar.component(.day, from: date)
+
+        return CGSize(
+            width: CGFloat((day % 3) - 1) * 0.6,
+            height: CGFloat(((day / 2) % 3) - 1) * 0.6
+        )
     }
 
     private var firstDayOfDisplayedYear: Date {
@@ -158,18 +203,6 @@ struct DashboardView: View {
                 days: days
             )
         }
-    }
-
-    private func dotColor(for date: Date) -> Color {
-        if calendar.isDate(date, inSameDayAs: selectedDate) {
-            return .accentColor
-        }
-
-        if achievementStore.hasCompletions(on: date) {
-            return .green
-        }
-
-        return .secondary.opacity(0.35)
     }
 
     private func progressText(for item: TrackedReminderItem) -> String {
