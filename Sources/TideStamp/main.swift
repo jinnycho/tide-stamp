@@ -44,12 +44,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // instead of sharing one expanded container with the "hi" screen.
         settingsPopover.contentSize = NSSize(width: 380, height: 320)
         settingsPopover.behavior = .transient
-        settingsPopover.contentViewController = NSHostingController(rootView: SettingsView(store: settingsStore))
+        settingsPopover.contentViewController = NSHostingController(
+            rootView: SettingsView(store: settingsStore))
 
         dashboardPopover.contentSize = NSSize(width: 460, height: 470)
         dashboardPopover.behavior = .transient
         dashboardPopover.contentViewController = NSHostingController(
-            rootView: DashboardView(settingsStore: settingsStore, achievementStore: achievementStore)
+            rootView: DashboardView(
+                settingsStore: settingsStore, achievementStore: achievementStore)
         )
 
         // NSStatusItem is the actual button that appears in the macOS menu bar.
@@ -109,7 +111,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         guard homePopover.isShown,
-              let homeView = homePopover.contentViewController?.view else {
+            let homeView = homePopover.contentViewController?.view
+        else {
             return
         }
 
@@ -132,7 +135,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         guard homePopover.isShown,
-              let homeView = homePopover.contentViewController?.view else {
+            let homeView = homePopover.contentViewController?.view
+        else {
             return
         }
 
@@ -156,7 +160,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             width: ReminderBurstView.displaySize,
             height: ReminderBurstView.displaySize
         )
-        let screenFrame = button.window?.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
+        let screenFrame =
+            button.window?.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
         let topRightMargin: CGFloat = 16
         let panelOrigin = NSPoint(
             // Put the animation near the top-right of the active laptop screen
@@ -189,7 +194,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         reminderBurstPanel = panel
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + ReminderBurstView.animationDuration) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + ReminderBurstView.animationDuration) {
+            [weak self] in
             self?.reminderBurstPanel?.close()
             self?.reminderBurstPanel = nil
         }

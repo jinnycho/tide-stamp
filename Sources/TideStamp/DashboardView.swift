@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct DashboardView: View {
@@ -10,6 +11,23 @@ struct DashboardView: View {
     private let calendar = Calendar.current
     private let dayColumns = Array(repeating: GridItem(.fixed(12), spacing: 5), count: 31)
     private let monthLabelWidth: CGFloat = 14
+    private let rewardIconSize: CGFloat = 21
+    private let dayDotSize: CGFloat = 8
+    private let selectedDayDetailHeight: CGFloat = 99
+
+    // SwiftPM flattens processed resource paths here, so reward1.png is loaded
+    // from the bundle root even though the source file lives in Assets/rewards.
+    // Keep the original 1024px artwork intact and let SwiftUI downsample it.
+    private static let todayRewardImage: NSImage? = {
+        guard
+            let url = Bundle.module.url(
+                forResource: "reward1",
+                withExtension: "png"
+            )
+        else { return nil }
+
+        return NSImage(contentsOf: url)
+    }()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -36,7 +54,7 @@ struct DashboardView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 7) {
                 ForEach(monthsInDisplayedYear, id: \.month) { month in
                     HStack(spacing: 6) {
                         Text("\(month.month)")
@@ -49,10 +67,7 @@ struct DashboardView: View {
                                 Button {
                                     selectedDate = date
                                 } label: {
-                                    Circle()
-                                        .fill(dotColor(for: date))
-                                        .frame(width: 6, height: 6)
-                                        .frame(width: 12, height: 12)
+                                    dayMarker(for: date)
                                 }
                                 .buttonStyle(.plain)
                                 .help(date.formatted(date: .abbreviated, time: .omitted))
@@ -101,7 +116,26 @@ struct DashboardView: View {
                 }
             }
         }
-        .frame(height: 110)
+        .frame(height: selectedDayDetailHeight)
+    }
+
+    @ViewBuilder
+    private func dayMarker(for date: Date) -> some View {
+        if calendar.isDateInToday(date), let rewardImage = Self.todayRewardImage {
+            Image(nsImage: rewardImage)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(width: rewardIconSize, height: rewardIconSize)
+                // Preserve the existing 12pt dashboard grid footprint so one
+                // reward icon does not resize the whole calendar row.
+                .frame(width: 12, height: 12)
+        } else {
+            Circle()
+                .fill(dotColor(for: date))
+                .frame(width: dayDotSize, height: dayDotSize)
+                .frame(width: 12, height: 12)
+        }
     }
 
     private var firstDayOfDisplayedYear: Date {
@@ -110,7 +144,9 @@ struct DashboardView: View {
 
     private var monthsInDisplayedYear: [MonthDays] {
         (1...12).map { month in
-            let start = calendar.date(from: DateComponents(year: displayedYear, month: month, day: 1)) ?? Date()
+            let start =
+                calendar.date(from: DateComponents(year: displayedYear, month: month, day: 1))
+                ?? Date()
             let range = calendar.range(of: .day, in: .month, for: start) ?? 1..<1
             let days = range.compactMap { day in
                 calendar.date(from: DateComponents(year: displayedYear, month: month, day: day))
