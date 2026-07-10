@@ -4,7 +4,7 @@ enum StatusItemBadge {
     static func image(isShowingDot: Bool) -> NSImage {
         let label = "Tide"
         let labelAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.menuBarFont(ofSize: 0),
+            .font: AppFont.statusItem,
             .foregroundColor: NSColor.labelColor
         ]
         let labelSize = label.size(withAttributes: labelAttributes)

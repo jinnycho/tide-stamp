@@ -15,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isShowingReminderDot = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppFont.registerBundledFonts()
+
         let reminderTimer = ReminderTimer { [weak self] item in
             // This callback fires for every reminder release, even when an older
             // due item is still unchecked. Keep the large burst tied to the

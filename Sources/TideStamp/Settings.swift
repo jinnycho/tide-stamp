@@ -65,12 +65,17 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Reminders")
-                    .font(.headline)
+                    .font(AppFont.headline)
 
                 Spacer()
 
-                Button(isEditing ? "Done" : "Edit") {
+                Button {
                     isEditing.toggle()
+                } label: {
+                    // Native macOS button labels do not always inherit the root
+                    // SwiftUI font, so style this text explicitly.
+                    Text(isEditing ? "Done" : "Edit")
+                        .font(AppFont.body)
                 }
             }
 
@@ -89,12 +94,17 @@ struct SettingsView: View {
                     Button {
                         store.addItem()
                     } label: {
-                        Label("Add reminder", systemImage: "plus")
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus")
+                            Text("Add reminder")
+                                .font(AppFont.body)
+                        }
                     }
                 }
             }
         }
         .padding()
+        .font(AppFont.body)
     }
 }
 
@@ -117,10 +127,14 @@ private struct ReminderItemRow: View {
             VStack(alignment: .leading, spacing: 8) {
                 // Reminder contents are locked until the user explicitly enters edit mode.
                 TextField("What should Tide remind you about?", text: $item.title)
+                    // TextField is AppKit-backed on macOS, so do not rely on
+                    // inherited font styling from SettingsView.
+                    .font(AppFont.body)
                     .disabled(!isEditing)
 
                 HStack {
                     Text("Every")
+                        .font(AppFont.body)
                         .foregroundStyle(.secondary)
 
                     Stepper(
@@ -134,6 +148,7 @@ private struct ReminderItemRow: View {
                                 value: $item.intervalMinutes,
                                 format: .number
                             )
+                            .font(AppFont.body)
                             .frame(width: 40)
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
@@ -143,6 +158,7 @@ private struct ReminderItemRow: View {
                             }
 
                             Text("min")
+                                .font(AppFont.body)
                                 .foregroundStyle(.secondary)
                         }
                     }

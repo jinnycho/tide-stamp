@@ -42,7 +42,7 @@ struct DashboardView: View {
                 Spacer()
 
                 Text(String(displayedYear))
-                    .font(.headline)
+                    .font(AppFont.headline)
 
                 Spacer()
 
@@ -58,7 +58,7 @@ struct DashboardView: View {
                 ForEach(monthsInDisplayedYear, id: \.month) { month in
                     HStack(spacing: 6) {
                         Text("\(month.month)")
-                            .font(.system(size: 8, weight: .medium))
+                            .font(AppFont.monthLabel)
                             .foregroundStyle(.secondary)
                             .frame(width: monthLabelWidth, alignment: .trailing)
 
@@ -83,12 +83,13 @@ struct DashboardView: View {
             selectedDayDetail
         }
         .padding()
+        .font(AppFont.body)
     }
 
     private var selectedDayDetail: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(selectedDate.formatted(date: .complete, time: .omitted))
-                .font(.headline)
+                .font(AppFont.headline)
 
             let items = achievementStore.trackedItemsWithProgress(on: selectedDate)
 
@@ -107,7 +108,7 @@ struct DashboardView: View {
                                 Spacer()
 
                                 Text(progressText(for: item))
-                                    .font(.system(.body, design: .monospaced))
+                                    .font(AppFont.body)
                                     .foregroundStyle(.secondary)
                             }
                             .padding(.vertical, 2)

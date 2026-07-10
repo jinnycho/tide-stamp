@@ -18,6 +18,7 @@ struct ContentView: View {
             onDashboardButtonClicked: onDashboardButtonClicked
         )
         .frame(width: 280, height: 220)
+        .font(AppFont.body)
     }
 }
 
@@ -25,6 +26,7 @@ private struct HomeView: View {
     let items: [ReminderItem]
     @ObservedObject var reminderTimer: ReminderTimer
     @ObservedObject var achievementStore: AchievementStore
+    @State private var selectedTab = HomeTab.todo
 
     // This callback keeps HomeView simple: it does not need to know whether
     // settings appears in another popover, window, or future navigation screen.
@@ -39,21 +41,49 @@ private struct HomeView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TabView {
-                TodoListView(
-                    items: dueItems,
-                    reminderTimer: reminderTimer,
-                    achievementStore: achievementStore
-                )
-                    .tabItem { Text("Todo") }
-
-                TickingListView(
-                    items: visibleItems,
-                    timeRemainingText: timeRemainingText,
-                    onRefresh: reminderTimer.refresh
-                )
-                .tabItem { Text("Ticking") }
+            // Use a SwiftUI-built switcher instead of TabView so the Todo/Ticking
+            // labels use the bundled Tabular font instead of AppKit's tab font.
+            HStack(spacing: 4) {
+                ForEach(HomeTab.allCases) { tab in
+                    Button {
+                        selectedTab = tab
+                    } label: {
+                        Text(tab.title)
+                            .font(selectedTab == tab ? AppFont.headline : AppFont.body)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .background {
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(selectedTab == tab ? Color.accentColor.opacity(0.14) : .clear)
+                    }
+                }
             }
+            .padding(2)
+            .background {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.secondary.opacity(0.08))
+            }
+
+            Group {
+                switch selectedTab {
+                case .todo:
+                    TodoListView(
+                        items: dueItems,
+                        reminderTimer: reminderTimer,
+                        achievementStore: achievementStore
+                    )
+                case .ticking:
+                    TickingListView(
+                        items: visibleItems,
+                        timeRemainingText: timeRemainingText,
+                        onRefresh: reminderTimer.refresh
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             HStack {
                 Button(action: onDashboardButtonClicked) {
@@ -94,6 +124,22 @@ private struct HomeView: View {
     }
 }
 
+private enum HomeTab: CaseIterable, Identifiable {
+    case todo
+    case ticking
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .todo:
+            return "Todo"
+        case .ticking:
+            return "Ticking"
+        }
+    }
+}
+
 private struct TodoListView: View {
     let items: [ReminderItem]
     @ObservedObject var reminderTimer: ReminderTimer
@@ -102,6 +148,7 @@ private struct TodoListView: View {
     var body: some View {
         if items.isEmpty {
             Text("Nothing due")
+                .font(AppFont.body)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
@@ -113,6 +160,7 @@ private struct TodoListView: View {
                     HStack {
                         Image(systemName: "circle")
                         Text(item.title)
+                            .font(AppFont.body)
                             .lineLimit(1)
                     }
                 }
@@ -131,18 +179,20 @@ private struct TickingListView: View {
     var body: some View {
         if items.isEmpty {
             Text("No reminders")
+                .font(AppFont.body)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(items) { item in
                 HStack {
                     Text(item.title)
+                        .font(AppFont.body)
                         .lineLimit(1)
 
                     Spacer()
 
                     Text(timeRemainingText(item))
-                        .font(.system(.body, design: .monospaced))
+                        .font(AppFont.body)
                         .foregroundStyle(.secondary)
 
                     Button {
