@@ -61,16 +61,29 @@ struct DashboardView: View {
             }
             .frame(maxWidth: .infinity)
 
-            // Tight horizontal columns let each row show all 31 reward images
-            // while leaving more of the popover's visual weight in the calendar.
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(monthsInDisplayedYear, id: \.month) { month in
-                    HStack(spacing: 2) {
+            // Keep month labels outside the off-white reward panel while the
+            // reward image grid still reads as one continuous yearly section.
+            HStack(alignment: .top, spacing: 2) {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(monthsInDisplayedYear, id: \.month) { month in
                         Text("\(month.month)")
                             .font(AppFont.monthLabel)
                             .foregroundStyle(.secondary)
-                            .frame(width: monthLabelWidth, alignment: .trailing)
+                            .frame(width: monthLabelWidth, alignment: .leading)
+                            .frame(height: rewardMarkerSlotSize)
+                    }
+                }
+                // Match the panel's top padding so labels align with the first
+                // reward row even though the labels sit outside the background.
+                .padding(.top, 6)
+                // Nudge only the month numbers left while keeping the reward
+                // panel and grid in their current position.
+                .offset(x: -4)
 
+                // Tight horizontal columns let each row show all 31 reward images
+                // while leaving more of the popover's visual weight in the calendar.
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(monthsInDisplayedYear, id: \.month) { month in
                         LazyVGrid(columns: dayColumns, alignment: .leading, spacing: 6) {
                             ForEach(month.days, id: \.self) { date in
                                 Button {
@@ -82,21 +95,27 @@ struct DashboardView: View {
                                 .help(date.formatted(date: .abbreviated, time: .omitted))
                             }
                         }
+                        .frame(height: rewardMarkerSlotSize)
                     }
                 }
+                .padding(.top, 6)
+                .padding(.leading, 1)
+                .padding(.trailing, 6)
+                .padding(.bottom, 6)
+                // Use the app's off-white panel color for the yearly reward overview
+                // so it stays visually separated from the daily detail without a divider.
+                .background(Color(red: 0xFF / 255, green: 0xFF / 255, blue: 0xFF / 255))
             }
             .padding(.vertical, 2)
             // The year row and daily detail keep their fixed heights. Any extra
             // dashboard height is assigned to the reward-image calendar area.
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
-            Divider()
-
             selectedDayDetail
         }
-        .padding(.top, 6)
-        .padding(.horizontal, 6)
-        .padding(.bottom, 10)
+        // Keep the dashboard content inset from the popover edges so the yearly
+        // reward panel and daily detail do not feel cramped.
+        .padding(12)
         .font(AppFont.body)
     }
 
