@@ -226,7 +226,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showQuitMenuPanel(below button: NSStatusBarButton) {
-        let panelSize = NSSize(width: 120, height: 36)
+        guard let reminderTimer else {
+            return
+        }
+
+        let panelSize = NSSize(width: 120, height: 68)
         let buttonRectInScreen = button.window?.convertToScreen(button.frame) ?? .zero
         let panelOrigin = NSPoint(
             x: buttonRectInScreen.midX - panelSize.width / 2,
@@ -248,9 +252,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .transient]
 
         let hostingView = NSHostingView(
-            rootView: StatusQuitMenuView { [weak self] in
-                self?.quitApp()
-            }
+            rootView: StatusQuitMenuView(
+                reminderTimer: reminderTimer,
+                onPauseClicked: { [weak self] in
+                    self?.reminderTimer?.togglePause()
+                    self?.quitMenuPanel?.close()
+                    self?.quitMenuPanel = nil
+                },
+                onQuitClicked: { [weak self] in
+                    self?.quitApp()
+                }
+            )
         )
         hostingView.frame = NSRect(origin: .zero, size: panelSize)
         hostingView.wantsLayer = true
@@ -417,29 +429,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 private struct StatusQuitMenuView: View {
-    let onQuit: () -> Void
-    @State private var isHoveringQuit = false
+    @ObservedObject var reminderTimer: ReminderTimer
+    let onPauseClicked: () -> Void
+    let onQuitClicked: () -> Void
 
     var body: some View {
-        Button(action: onQuit) {
-            Text("Quit")
+        VStack(spacing: 0) {
+            StatusMenuRow(
+                title: reminderTimer.isPaused ? "Resume" : "Pause",
+                action: onPauseClicked
+            )
+
+            Divider()
+                // Keep the menu separation subtle so it reads like a native
+                // utility dropdown divider instead of another selected row.
+                .background(AppColors.controlBackground.opacity(0.55))
+                .padding(.horizontal, 8)
+
+            StatusMenuRow(
+                title: "Quit",
+                action: onQuitClicked
+            )
+        }
+        .frame(width: 120, height: 68)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .background(AppColors.panelBackground.opacity(0.8))
+        .preferredColorScheme(.light)
+    }
+}
+
+private struct StatusMenuRow: View {
+    let title: String
+    let action: () -> Void
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
                 // Use the native Apple menu font for this flat utility menu,
                 // unlike the app popovers that intentionally use Tabular.
                 .font(.system(size: NSFont.menuFont(ofSize: 0).pointSize))
-                .foregroundStyle(isHoveringQuit ? Color.white : AppColors.primaryText)
+                .foregroundStyle(isHovering ? Color.white : AppColors.primaryText)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { isHoveringQuit = $0 }
-        .background(
-            isHoveringQuit ? Color.accentColor.opacity(0.8) : AppColors.panelBackground.opacity(0.8)
-        )
-        .frame(width: 120, height: 36)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .background(AppColors.panelBackground.opacity(0.8))
-        .preferredColorScheme(.light)
+        .onHover { isHovering = $0 }
+        .background(isHovering ? Color.accentColor.opacity(0.8) : Color.clear)
+        .frame(width: 120, height: 34)
     }
 }
 
