@@ -7,15 +7,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let homePopover = NSPopover()
     private let settingsPopover = NSPopover()
     private let dashboardPopover = NSPopover()
+    private let dailyDetailPopover = NSPopover()
     private var reminderBurstPanel: NSPanel?
     private let settingsStore = ReminderSettingsStore()
     private let achievementStore = AchievementStore()
+    private let dailyDetailSelectionStore = DailyDetailSelectionStore()
     private var reminderTimer: ReminderTimer?
     private var cancellables = Set<AnyCancellable>()
     private var isShowingReminderDot = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppFont.registerBundledFonts()
+        // Tide Stamp's UI uses fixed light surfaces and reward artwork, so force
+        // the app to Aqua instead of inheriting the system dark appearance.
+        NSApp.appearance = NSAppearance(named: .aqua)
 
         let reminderTimer = ReminderTimer { [weak self] item in
             // This callback fires for every reminder release, even when an older
@@ -47,13 +52,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsPopover.contentSize = NSSize(width: 380, height: 320)
         settingsPopover.behavior = .transient
         settingsPopover.contentViewController = NSHostingController(
-            rootView: SettingsView(store: settingsStore))
+            rootView: SettingsView(store: settingsStore) { [weak self] in
+                self?.settingsPopover.performClose(nil)
+            })
 
-        dashboardPopover.contentSize = NSSize(width: 530, height: 450)
-        dashboardPopover.behavior = .transient
+        // Daily details now live in their own popover, so the dashboard only
+        // needs enough height for the year controls and reward grid.
+        dashboardPopover.contentSize = NSSize(width: 570, height: 340)
+        // Keep Dashboard open when clicking a reward to show the separate daily
+        // detail popover. AppDelegate already owns explicit close behavior.
+        dashboardPopover.behavior = .applicationDefined
         dashboardPopover.contentViewController = NSHostingController(
             rootView: DashboardView(
-                settingsStore: settingsStore, achievementStore: achievementStore)
+                settingsStore: settingsStore,
+                achievementStore: achievementStore
+            ) { [weak self] date in
+                self?.showDailyDetailPopover(for: date)
+            } onCloseButtonClicked: { [weak self] in
+                self?.dashboardPopover.performClose(nil)
+                self?.dailyDetailPopover.performClose(nil)
+            }
+        )
+
+        dailyDetailPopover.contentSize = NSSize(width: 280, height: 220)
+        // Daily detail is a companion block for Dashboard, so opening it should
+        // not cause AppKit to auto-dismiss the Dashboard popover.
+        dailyDetailPopover.behavior = .applicationDefined
+        dailyDetailPopover.contentViewController = NSHostingController(
+            rootView: DailyDetailView(
+                achievementStore: achievementStore,
+                selectionStore: dailyDetailSelectionStore
+            ) { [weak self] in
+                self?.dailyDetailPopover.performClose(nil)
+            }
         )
 
         // NSStatusItem is the actual button that appears in the macOS menu bar.
@@ -97,9 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if homePopover.isShown {
-            settingsPopover.performClose(nil)
-            dashboardPopover.performClose(nil)
-            homePopover.performClose(nil)
+            closeAllPopovers()
         } else {
             homePopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
@@ -109,6 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if settingsPopover.isShown {
             settingsPopover.performClose(nil)
             dashboardPopover.performClose(nil)
+            dailyDetailPopover.performClose(nil)
             return
         }
 
@@ -119,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         dashboardPopover.performClose(nil)
+        dailyDetailPopover.performClose(nil)
 
         // Anchor settings to the left edge of the home popover. This makes it
         // feel like a separate nearby screen instead of one larger shared view.
@@ -133,6 +164,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if dashboardPopover.isShown {
             dashboardPopover.performClose(nil)
             settingsPopover.performClose(nil)
+            dailyDetailPopover.performClose(nil)
             return
         }
 
@@ -143,14 +175,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         settingsPopover.performClose(nil)
+        dailyDetailPopover.performClose(nil)
 
-        let positioningRect = homeView.bounds.offsetBy(dx: -180, dy: 0)
-
+        // Match Settings' anchor so Dashboard opens directly to the left of the
+        // main home view instead of using a custom shifted positioning rect.
         dashboardPopover.show(
-            relativeTo: positioningRect,
+            relativeTo: homeView.bounds,
             of: homeView,
             preferredEdge: .minX
         )
+    }
+
+    private func showDailyDetailPopover(for date: Date) {
+        guard homePopover.isShown,
+            let homeView = homePopover.contentViewController?.view
+        else {
+            return
+        }
+
+        // Update the existing hosted view instead of replacing the hosting
+        // controller, which prevents AppKit from recomputing popover placement.
+        dailyDetailSelectionStore.selectedDate = date
+
+        if dailyDetailPopover.isShown {
+            return
+        }
+
+        let centeredBottomAnchor = NSRect(
+            // Shift slightly right because AppKit's popover arrow placement
+            // currently makes the same-width detail block read a bit left.
+            x: homeView.bounds.midX + 8,
+            y: homeView.bounds.minY,
+            width: 0,
+            height: 0
+        )
+
+        // Anchor the daily details to the bottom edge of the main home popover,
+        // making it a separate block below the Dashboard/Settings button view.
+        dailyDetailPopover.show(
+            relativeTo: centeredBottomAnchor,
+            of: homeView,
+            preferredEdge: .minY
+        )
+    }
+
+    private func closeAllPopovers() {
+        settingsPopover.performClose(nil)
+        dashboardPopover.performClose(nil)
+        dailyDetailPopover.performClose(nil)
+        homePopover.performClose(nil)
     }
 
     private func showReminderBurst() {
