@@ -111,6 +111,9 @@ struct SettingsView: View {
             }
         }
         .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.white)
+        .preferredColorScheme(.light)
         .font(AppFont.body)
     }
 }

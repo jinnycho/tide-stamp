@@ -33,7 +33,7 @@ struct DashboardView: View {
     }()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 8) {
             // Keep the year controls compact so the dashboard reads as a calendar
             // first, rather than giving the navigation row the whole popover width.
             HStack(spacing: 8) {
@@ -128,6 +128,9 @@ struct DashboardView: View {
         .padding(.horizontal, 6)
         // .padding(.trailing, 12)
         .padding(.bottom, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.white)
+        .preferredColorScheme(.light)
         .font(AppFont.body)
     }
 
@@ -260,6 +263,7 @@ struct DailyDetailView: View {
         .padding()
         .background(Color(red: 0xFA / 255, green: 0xFA / 255, blue: 0xFA / 255))
         .frame(width: 280, height: 220)
+        .preferredColorScheme(.light)
         .font(AppFont.body)
     }
 

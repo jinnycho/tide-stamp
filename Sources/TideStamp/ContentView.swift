@@ -18,6 +18,8 @@ struct ContentView: View {
             onDashboardButtonClicked: onDashboardButtonClicked
         )
         .frame(width: 280, height: 220)
+        .background(Color.white)
+        .preferredColorScheme(.light)
         .font(AppFont.body)
     }
 }

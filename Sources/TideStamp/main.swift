@@ -18,6 +18,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppFont.registerBundledFonts()
+        // Tide Stamp's UI uses fixed light surfaces and reward artwork, so force
+        // the app to Aqua instead of inheriting the system dark appearance.
+        NSApp.appearance = NSAppearance(named: .aqua)
 
         let reminderTimer = ReminderTimer { [weak self] item in
             // This callback fires for every reminder release, even when an older
@@ -53,7 +56,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.settingsPopover.performClose(nil)
             })
 
-        dashboardPopover.contentSize = NSSize(width: 530, height: 450)
+        // Daily details now live in their own popover, so the dashboard only
+        // needs enough height for the year controls and reward grid.
+        dashboardPopover.contentSize = NSSize(width: 570, height: 340)
         // Keep Dashboard open when clicking a reward to show the separate daily
         // detail popover. AppDelegate already owns explicit close behavior.
         dashboardPopover.behavior = .applicationDefined
