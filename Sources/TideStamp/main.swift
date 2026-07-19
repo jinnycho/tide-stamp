@@ -51,7 +51,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             rootView: SettingsView(store: settingsStore))
 
         dashboardPopover.contentSize = NSSize(width: 530, height: 450)
-        dashboardPopover.behavior = .transient
+        // Keep the dashboard open when reward clicks open the companion details
+        // popover. `.transient` closes when AppKit sees that as outside focus.
+        dashboardPopover.behavior = .semitransient
         dashboardPopover.contentViewController = NSHostingController(
             rootView: DashboardView(
                 achievementStore: achievementStore
@@ -63,7 +65,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Daily details match Home's size so the selected day reads as a
         // companion panel below Todo/Ticking instead of part of the dashboard.
         dailyDetailsPopover.contentSize = NSSize(width: 280, height: 220)
-        dailyDetailsPopover.behavior = .transient
+        // Match dashboard behavior so users can move between calendar and
+        // details without either related popover disappearing immediately.
+        dailyDetailsPopover.behavior = .semitransient
 
         // NSStatusItem is the actual button that appears in the macOS menu bar.
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)

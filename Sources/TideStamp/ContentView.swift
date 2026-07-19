@@ -19,6 +19,9 @@ struct ContentView: View {
         )
         .frame(width: 280, height: 220)
         .font(AppFont.body)
+        .background(AppColors.panelBackground)
+        .foregroundStyle(AppColors.primaryText)
+        .preferredColorScheme(.light)
     }
 }
 
@@ -57,14 +60,20 @@ private struct HomeView: View {
                     .buttonStyle(.plain)
                     .background {
                         RoundedRectangle(cornerRadius: 5)
-                            .fill(selectedTab == tab ? Color.accentColor.opacity(0.14) : .clear)
+                            .fill(
+                                selectedTab == tab
+                                    ? AppColors.selectedControlBackground
+                                    : AppColors.controlBackground
+                            )
                     }
                 }
             }
             .padding(2)
             .background {
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.secondary.opacity(0.08))
+                    // Todo/Ticking should stay slightly darker than the fixed
+                    // ECEEF0 panel even when macOS switches appearance.
+                    .fill(AppColors.controlBackground)
             }
 
             Group {
@@ -89,10 +98,12 @@ private struct HomeView: View {
                 Button(action: onDashboardButtonClicked) {
                     Label("Dashboard", systemImage: "chart.dots.scatter")
                 }
+                .buttonStyle(FixedGrayButtonStyle())
 
                 Button(action: onSettingsButtonClicked) {
                     Label("Settings", systemImage: "gearshape")
                 }
+                .buttonStyle(FixedGrayButtonStyle())
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -149,7 +160,7 @@ private struct TodoListView: View {
         if items.isEmpty {
             Text("Nothing due")
                 .font(AppFont.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppColors.secondaryText)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(items) { item in
@@ -166,7 +177,10 @@ private struct TodoListView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.vertical, 2)
+                .listRowBackground(AppColors.panelBackground)
             }
+            .scrollContentBackground(.hidden)
+            .background(AppColors.panelBackground)
         }
     }
 }
@@ -180,30 +194,40 @@ private struct TickingListView: View {
         if items.isEmpty {
             Text("No reminders")
                 .font(AppFont.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppColors.secondaryText)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(items) { item in
-                HStack {
+                HStack(spacing: 4) {
                     Text(item.title)
                         .font(AppFont.body)
                         .lineLimit(1)
+                        .layoutPriority(1)
 
-                    Spacer()
+                    Spacer(minLength: 4)
 
                     Text(timeRemainingText(item))
                         .font(AppFont.body)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppColors.secondaryText)
+                        .monospacedDigit()
 
                     Button {
                         onRefresh(item)
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(CompactIconButtonStyle())
                 }
-                .padding(.vertical, 2)
+                // Keep ticking rows compact horizontally so longer reminder names
+                // have as much room as possible in the small Home popover.
+                .padding(.vertical, 0)
+                .listRowInsets(EdgeInsets(top: 2, leading: 2, bottom: 2, trailing: 2))
+                // Ticking's actual reminder rows should read as content, so keep
+                // them white against the fixed grey app panel.
+                .listRowBackground(AppColors.dashboardBackground)
             }
+            .scrollContentBackground(.hidden)
+            .background(AppColors.dashboardBackground)
         }
     }
 }

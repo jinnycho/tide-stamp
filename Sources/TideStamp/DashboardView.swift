@@ -64,7 +64,7 @@ struct DashboardView: View {
                     HStack(spacing: 2) {
                         Text("\(month.month)")
                             .font(AppFont.monthLabel)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(AppColors.secondaryText)
                             .frame(width: monthLabelWidth, alignment: .trailing)
 
                         LazyVGrid(columns: dayColumns, alignment: .leading, spacing: 6) {
@@ -91,6 +91,9 @@ struct DashboardView: View {
         .padding(.horizontal, 6)
         .padding(.bottom, 10)
         .font(AppFont.body)
+        .background(AppColors.dashboardBackground)
+        .foregroundStyle(AppColors.primaryText)
+        .preferredColorScheme(.light)
     }
 
     @ViewBuilder
@@ -178,7 +181,7 @@ struct DailyDetailsView: View {
 
             if items.isEmpty {
                 Text("No completed reminders")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppColors.secondaryText)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 // The details panel is the same size as Home, so long days scroll
@@ -194,7 +197,7 @@ struct DailyDetailsView: View {
 
                                 Text(progressText(for: item))
                                     .font(AppFont.body)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(AppColors.secondaryText)
                                     .monospacedDigit()
                             }
                             .padding(.vertical, 2)
@@ -207,6 +210,9 @@ struct DailyDetailsView: View {
         }
         .padding()
         .font(AppFont.body)
+        .background(AppColors.panelBackground)
+        .foregroundStyle(AppColors.primaryText)
+        .preferredColorScheme(.light)
     }
 
     private func progressText(for item: TrackedReminderItem) -> String {
