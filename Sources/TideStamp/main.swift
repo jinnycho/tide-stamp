@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let homePopover = NSPopover()
     private let settingsPopover = NSPopover()
     private let dashboardPopover = NSPopover()
+    private let dailyDetailsPopover = NSPopover()
     private var reminderBurstPanel: NSPanel?
     private let settingsStore = ReminderSettingsStore()
     private let achievementStore = AchievementStore()
@@ -53,8 +54,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dashboardPopover.behavior = .transient
         dashboardPopover.contentViewController = NSHostingController(
             rootView: DashboardView(
-                settingsStore: settingsStore, achievementStore: achievementStore)
+                achievementStore: achievementStore
+            ) { [weak self] date in
+                self?.showDailyDetails(for: date)
+            }
         )
+
+        // Daily details match Home's size so the selected day reads as a
+        // companion panel below Todo/Ticking instead of part of the dashboard.
+        dailyDetailsPopover.contentSize = NSSize(width: 280, height: 220)
+        dailyDetailsPopover.behavior = .transient
 
         // NSStatusItem is the actual button that appears in the macOS menu bar.
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -99,6 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if homePopover.isShown {
             settingsPopover.performClose(nil)
             dashboardPopover.performClose(nil)
+            dailyDetailsPopover.performClose(nil)
             homePopover.performClose(nil)
         } else {
             homePopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -109,6 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if settingsPopover.isShown {
             settingsPopover.performClose(nil)
             dashboardPopover.performClose(nil)
+            dailyDetailsPopover.performClose(nil)
             return
         }
 
@@ -119,6 +130,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         dashboardPopover.performClose(nil)
+        dailyDetailsPopover.performClose(nil)
 
         // Anchor settings to the left edge of the home popover. This makes it
         // feel like a separate nearby screen instead of one larger shared view.
@@ -133,6 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if dashboardPopover.isShown {
             dashboardPopover.performClose(nil)
             settingsPopover.performClose(nil)
+            dailyDetailsPopover.performClose(nil)
             return
         }
 
@@ -143,6 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         settingsPopover.performClose(nil)
+        dailyDetailsPopover.performClose(nil)
 
         let positioningRect = homeView.bounds.offsetBy(dx: -180, dy: 0)
 
@@ -150,6 +164,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             relativeTo: positioningRect,
             of: homeView,
             preferredEdge: .minX
+        )
+    }
+
+    private func showDailyDetails(for date: Date) {
+        guard homePopover.isShown,
+            let homeView = homePopover.contentViewController?.view
+        else {
+            return
+        }
+
+        // Rebuild the hosting controller for the clicked date. The popover stays
+        // fixed-size, while DailyDetailsView handles overflow with a ScrollView.
+        dailyDetailsPopover.contentViewController = NSHostingController(
+            rootView: DailyDetailsView(
+                achievementStore: achievementStore,
+                selectedDate: date
+            )
+        )
+
+        if dailyDetailsPopover.isShown {
+            return
+        }
+
+        dailyDetailsPopover.show(
+            relativeTo: homeView.bounds,
+            of: homeView,
+            preferredEdge: .minY
         )
     }
 

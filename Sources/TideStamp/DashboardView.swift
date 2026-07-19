@@ -2,11 +2,10 @@ import AppKit
 import SwiftUI
 
 struct DashboardView: View {
-    @ObservedObject var settingsStore: ReminderSettingsStore
     @ObservedObject var achievementStore: AchievementStore
+    let onRewardClicked: (Date) -> Void
 
     @State private var displayedYear = Calendar.current.component(.year, from: Date())
-    @State private var selectedDate = Date()
 
     private let calendar = Calendar.current
     // Flexible columns use the full dashboard width so the reward markers spread
@@ -16,7 +15,6 @@ struct DashboardView: View {
     private let monthLabelWidth: CGFloat = 10
     private let rewardMarkerSize: CGFloat = 19
     private let rewardMarkerSlotSize: CGFloat = 20
-    private let selectedDayDetailHeight: CGFloat = 90
 
     // SwiftPM flattens processed resource paths here, so reward1.png is loaded
     // from the bundle root even though the source file lives in Assets/rewards.
@@ -39,7 +37,6 @@ struct DashboardView: View {
             HStack(spacing: 8) {
                 Button {
                     displayedYear -= 1
-                    selectedDate = firstDayOfDisplayedYear
                 } label: {
                     Image(systemName: "chevron.left")
                 }
@@ -52,7 +49,6 @@ struct DashboardView: View {
 
                 Button {
                     displayedYear += 1
-                    selectedDate = firstDayOfDisplayedYear
                 } label: {
                     Image(systemName: "chevron.right")
                 }
@@ -74,7 +70,9 @@ struct DashboardView: View {
                         LazyVGrid(columns: dayColumns, alignment: .leading, spacing: 6) {
                             ForEach(month.days, id: \.self) { date in
                                 Button {
-                                    selectedDate = date
+                                    // Date selection now belongs to AppDelegate because
+                                    // details are shown in their own popover below Home.
+                                    onRewardClicked(date)
                                 } label: {
                                     dayMarker(for: date)
                                 }
@@ -86,53 +84,13 @@ struct DashboardView: View {
                 }
             }
             .padding(.vertical, 2)
-            // The year row and daily detail keep their fixed heights. Any extra
-            // dashboard height is assigned to the reward-image calendar area.
+            // Keep the reward calendar centered in the dashboard's fixed popover.
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-
-            Divider()
-
-            selectedDayDetail
         }
         .padding(.top, 6)
         .padding(.horizontal, 6)
         .padding(.bottom, 10)
         .font(AppFont.body)
-    }
-
-    private var selectedDayDetail: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(selectedDate.formatted(date: .complete, time: .omitted))
-                .font(AppFont.headline)
-
-            let items = achievementStore.trackedItemsWithProgress(on: selectedDate)
-
-            if items.isEmpty {
-                Text("No reminder items")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 6) {
-                        ForEach(items) { item in
-                            HStack {
-                                Text(item.title)
-                                    .lineLimit(1)
-
-                                Spacer()
-
-                                Text(progressText(for: item))
-                                    .font(AppFont.body)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.vertical, 2)
-                        }
-                    }
-                }
-                .scrollIndicators(.visible)
-            }
-        }
-        .frame(height: selectedDayDetailHeight)
     }
 
     @ViewBuilder
@@ -184,10 +142,6 @@ struct DashboardView: View {
         )
     }
 
-    private var firstDayOfDisplayedYear: Date {
-        calendar.date(from: DateComponents(year: displayedYear, month: 1, day: 1)) ?? Date()
-    }
-
     private var monthsInDisplayedYear: [MonthDays] {
         (1...12).map { month in
             let start =
@@ -204,14 +158,59 @@ struct DashboardView: View {
             )
         }
     }
-
-    private func progressText(for item: TrackedReminderItem) -> String {
-        let progress = achievementStore.progress(for: item, on: selectedDate)
-        return "\(progress.completed)/\(progress.released)"
-    }
 }
 
 private struct MonthDays {
     let month: Int
     let days: [Date]
+}
+
+struct DailyDetailsView: View {
+    @ObservedObject var achievementStore: AchievementStore
+    let selectedDate: Date
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(selectedDate.formatted(date: .complete, time: .omitted))
+                .font(AppFont.headline)
+
+            let items = achievementStore.trackedItemsWithProgress(on: selectedDate)
+
+            if items.isEmpty {
+                Text("No completed reminders")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                // The details panel is the same size as Home, so long days scroll
+                // inside this view instead of resizing the popover.
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(items) { item in
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(item.title)
+                                    .lineLimit(1)
+
+                                Spacer(minLength: 8)
+
+                                Text(progressText(for: item))
+                                    .font(AppFont.body)
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .scrollIndicators(.visible)
+            }
+        }
+        .padding()
+        .font(AppFont.body)
+    }
+
+    private func progressText(for item: TrackedReminderItem) -> String {
+        let progress = achievementStore.progress(for: item, on: selectedDate)
+        return "\(progress.completed)/\(progress.released)"
+    }
 }
