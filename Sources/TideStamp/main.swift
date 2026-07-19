@@ -9,11 +9,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let dashboardPopover = NSPopover()
     private let dailyDetailsPopover = NSPopover()
     private var reminderBurstPanel: NSPanel?
+    private var localMouseMonitor: Any?
+    private var globalMouseMonitor: Any?
     private let settingsStore = ReminderSettingsStore()
     private let achievementStore = AchievementStore()
+    private let dailyDetailsSelection = DailyDetailsSelection()
     private var reminderTimer: ReminderTimer?
     private var cancellables = Set<AnyCancellable>()
     private var isShowingReminderDot = false
+    private let compactPopoverSize = NSSize(width: 280, height: 220)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppFont.registerBundledFonts()
@@ -39,21 +43,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.toggleDashboardPopover()
         }
 
-        homePopover.contentSize = NSSize(width: 280, height: 220)
-        homePopover.behavior = .transient
+        homePopover.contentSize = compactPopoverSize
+        // All app popovers use application-defined behavior so clicks between Home,
+        // Dashboard, Settings, and Daily Details do not make AppKit close one
+        // surface while another app surface is handling the same interaction.
+        // Outside-app dismissal is handled explicitly by the mouse monitors below.
+        homePopover.behavior = .applicationDefined
         homePopover.contentViewController = NSHostingController(rootView: contentView)
 
         // Settings gets its own popover so it has a separate border/background
         // instead of sharing one expanded container with the "hi" screen.
         settingsPopover.contentSize = NSSize(width: 380, height: 320)
-        settingsPopover.behavior = .transient
+        settingsPopover.behavior = .applicationDefined
         settingsPopover.contentViewController = NSHostingController(
             rootView: SettingsView(store: settingsStore))
 
         dashboardPopover.contentSize = NSSize(width: 530, height: 450)
-        // Keep the dashboard open when reward clicks open the companion details
-        // popover. `.transient` closes when AppKit sees that as outside focus.
-        dashboardPopover.behavior = .semitransient
+        // Keep Dashboard open when reward clicks open the companion details
+        // popover. AppKit's transient/semitransient modes can dismiss the first
+        // popover while the second one is being shown.
+        dashboardPopover.behavior = .applicationDefined
         dashboardPopover.contentViewController = NSHostingController(
             rootView: DashboardView(
                 achievementStore: achievementStore
@@ -64,10 +73,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Daily details match Home's size so the selected day reads as a
         // companion panel below Todo/Ticking instead of part of the dashboard.
-        dailyDetailsPopover.contentSize = NSSize(width: 280, height: 220)
-        // Match dashboard behavior so users can move between calendar and
-        // details without either related popover disappearing immediately.
-        dailyDetailsPopover.behavior = .semitransient
+        dailyDetailsPopover.contentSize = compactPopoverSize
+        // Match Dashboard's behavior so users can move between calendar and
+        // details without AppKit automatically dismissing either related popover.
+        dailyDetailsPopover.behavior = .applicationDefined
+        // Keep one fixed-size hosting controller for Daily Details. Replacing a
+        // shown popover's controller lets AppKit briefly resize from the new
+        // SwiftUI view's intrinsic size before contentSize is applied again.
+        dailyDetailsPopover.contentViewController = NSHostingController(
+            rootView: DailyDetailsContainerView(
+                achievementStore: achievementStore,
+                selection: dailyDetailsSelection,
+                size: compactPopoverSize
+            )
+        )
 
         // NSStatusItem is the actual button that appears in the macOS menu bar.
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -77,6 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         self.statusItem = statusItem
         updateStatusItemBadge()
+        installOutsideClickMonitors()
 
         reminderTimer.restart(with: settingsStore.items)
         achievementStore.syncDeletedItems(currentItems: settingsStore.items)
@@ -103,6 +123,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .store(in: &cancellables)
     }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        removeOutsideClickMonitors()
+    }
+
     @objc private func togglePopover() {
         // The popover needs the status bar button as its anchor point.
         guard let button = statusItem?.button else {
@@ -110,10 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if homePopover.isShown {
-            settingsPopover.performClose(nil)
-            dashboardPopover.performClose(nil)
-            dailyDetailsPopover.performClose(nil)
-            homePopover.performClose(nil)
+            closeOpenSurfaces()
         } else {
             homePopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
@@ -178,14 +199,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        // Rebuild the hosting controller for the clicked date. The popover stays
-        // fixed-size, while DailyDetailsView handles overflow with a ScrollView.
-        dailyDetailsPopover.contentViewController = NSHostingController(
-            rootView: DailyDetailsView(
-                achievementStore: achievementStore,
-                selectedDate: date
-            )
-        )
+        // Updating observable state keeps the existing popover window and hosting
+        // controller in place, so changing dates cannot trigger a resize flash.
+        dailyDetailsSelection.selectedDate = date
+        dailyDetailsPopover.contentSize = compactPopoverSize
 
         if dailyDetailsPopover.isShown {
             return
@@ -251,6 +268,89 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateStatusItemBadge() {
         statusItem?.button?.image = StatusItemBadge.image(isShowingDot: isShowingReminderDot)
         statusItem?.button?.toolTip = isShowingReminderDot ? "Reminder due" : nil
+    }
+
+    private func installOutsideClickMonitors() {
+        let clickEvents: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+
+        // Local events cover clicks delivered to this app, including the status
+        // item and any popover windows. Keep those clicks alive, but collapse
+        // open surfaces when the click lands outside the known app views.
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: clickEvents) {
+            [weak self] event in
+            guard let self else { return event }
+
+            if !self.isEventInsideAppSurface(event) {
+                self.closeOpenSurfaces()
+            }
+
+            return event
+        }
+
+        // Global events cover clicks in other apps. Semitransient popovers are
+        // useful for Dashboard + Daily Details, but they need this explicit
+        // outside-click path to dismiss as one group.
+        globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: clickEvents) {
+            [weak self] _ in
+            self?.closeOpenSurfaces()
+        }
+    }
+
+    private func removeOutsideClickMonitors() {
+        if let localMouseMonitor {
+            NSEvent.removeMonitor(localMouseMonitor)
+            self.localMouseMonitor = nil
+        }
+
+        if let globalMouseMonitor {
+            NSEvent.removeMonitor(globalMouseMonitor)
+            self.globalMouseMonitor = nil
+        }
+    }
+
+    private func isEventInsideAppSurface(_ event: NSEvent) -> Bool {
+        let appSurfaceWindows = [
+            statusItem?.button?.window,
+            homePopover.contentViewController?.view.window,
+            settingsPopover.contentViewController?.view.window,
+            dashboardPopover.contentViewController?.view.window,
+            dailyDetailsPopover.contentViewController?.view.window,
+            reminderBurstPanel
+        ]
+
+        return appSurfaceWindows.contains { window in
+            guard let window else { return false }
+            return event.window === window
+        }
+    }
+
+    private func closeOpenSurfaces() {
+        settingsPopover.performClose(nil)
+        dashboardPopover.performClose(nil)
+        dailyDetailsPopover.performClose(nil)
+        homePopover.performClose(nil)
+        reminderBurstPanel?.close()
+        reminderBurstPanel = nil
+    }
+}
+
+private final class DailyDetailsSelection: ObservableObject {
+    @Published var selectedDate = Date()
+}
+
+private struct DailyDetailsContainerView: View {
+    @ObservedObject var achievementStore: AchievementStore
+    @ObservedObject var selection: DailyDetailsSelection
+    let size: NSSize
+
+    var body: some View {
+        DailyDetailsView(
+            achievementStore: achievementStore,
+            selectedDate: selection.selectedDate
+        )
+        // Match the popover's AppKit contentSize so SwiftUI never asks for a
+        // larger host view while the user clicks between reward dates.
+        .frame(width: size.width, height: size.height)
     }
 }
 
