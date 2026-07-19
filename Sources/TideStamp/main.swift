@@ -177,10 +177,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsPopover.performClose(nil)
         dailyDetailPopover.performClose(nil)
 
-        let positioningRect = homeView.bounds.offsetBy(dx: -180, dy: 0)
-
+        // Match Settings' anchor so Dashboard opens directly to the left of the
+        // main home view instead of using a custom shifted positioning rect.
         dashboardPopover.show(
-            relativeTo: positioningRect,
+            relativeTo: homeView.bounds,
             of: homeView,
             preferredEdge: .minX
         )

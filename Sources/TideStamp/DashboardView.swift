@@ -10,13 +10,13 @@ struct DashboardView: View {
     @State private var displayedYear = Calendar.current.component(.year, from: Date())
 
     private let calendar = Calendar.current
-    // Flexible columns use the full dashboard width so the reward markers spread
-    // out when the popover gets wider instead of staying packed to the left.
+    // Keep the calendar readable by preserving month/day order, while tighter
+    // spacing makes the rewards feel more like a clustered field.
     private let dayColumns = Array(
-        repeating: GridItem(.flexible(minimum: 16), spacing: 0), count: 31)
+        repeating: GridItem(.flexible(minimum: 15), spacing: 4), count: 31)
     private let monthLabelWidth: CGFloat = 10
-    private let rewardMarkerSize: CGFloat = 19
-    private let rewardMarkerSlotSize: CGFloat = 20
+    private let rewardMarkerSize: CGFloat = 26
+    private let rewardMarkerSlotSize: CGFloat = 26
 
     // SwiftPM flattens processed resource paths here, so reward1.png is loaded
     // from the bundle root even though the source file lives in Assets/rewards.
@@ -69,64 +69,18 @@ struct DashboardView: View {
                 .help("Close")
             }
 
-            // Keep month labels outside the off-white reward panel while the
-            // reward image grid still reads as one continuous yearly section.
-            HStack(alignment: .top, spacing: 2) {
-                VStack(alignment: .center, spacing: 8) {
-                    ForEach(monthsInDisplayedYear, id: \.month) { month in
-                        Text("\(month.month)")
-                            .font(AppFont.monthLabel)
-                            .foregroundStyle(.secondary)
-                            .frame(width: monthLabelWidth, alignment: .center)
-                            .frame(height: rewardMarkerSlotSize)
-                    }
-                }
-                // Match the panel's top padding so labels align with the first
-                // reward row even though the labels sit outside the background.
-                .padding(.top, 2)
-                // Nudge only the month numbers left while keeping the reward
-                // panel and grid in their current position.
-                .offset(x: -4)
-
-                // Tight horizontal columns let each row show all 31 reward images
-                // while leaving more of the popover's visual weight in the calendar.
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(monthsInDisplayedYear, id: \.month) { month in
-                        LazyVGrid(columns: dayColumns, alignment: .leading, spacing: 6) {
-                            ForEach(month.days, id: \.self) { date in
-                                Button {
-                                    // AppDelegate owns the detached detail popover,
-                                    // so the dashboard only reports the clicked reward.
-                                    onDateSelected(date)
-                                } label: {
-                                    dayMarker(for: date)
-                                }
-                                .buttonStyle(.plain)
-                                .help(date.formatted(date: .abbreviated, time: .omitted))
-                            }
-                        }
-                        .frame(height: rewardMarkerSlotSize)
-                    }
-                }
-                .padding(.top, 2)
-                .padding(.leading, 1)
-                .padding(.trailing, 6)
-                .padding(.bottom, 6)
-                // Use the app's off-white panel color for the yearly reward overview
-                // so it stays visually separated from the daily detail without a divider.
-                .background(Color(red: 0xFF / 255, green: 0xFF / 255, blue: 0xFF / 255))
-            }
-            .padding(.vertical, 2)
-            // Keep the reward grid directly below the year controls. Since daily
-            // details now live in a separate popover, centering this flexible area
-            // creates an unwanted gap under the dashboard close button.
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            clusteredRewardGrid
+                .padding(.vertical, 2)
+                // Keep the reward grid directly below the year controls. Since daily
+                // details now live in a separate popover, centering this flexible area
+                // creates an unwanted gap under the dashboard close button.
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         // Match main's left inset so the dashboard content opens at its original
         // horizontal position, while keeping extra breathing room elsewhere.
         .padding(.top, 6)
-        .padding(.horizontal, 6)
-        // .padding(.trailing, 12)
+        .padding(.horizontal, 1)
+        .padding(.trailing, 12)
         .padding(.bottom, 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.white)
@@ -134,10 +88,52 @@ struct DashboardView: View {
         .font(AppFont.body)
     }
 
+    private var clusteredRewardGrid: some View {
+        HStack(alignment: .top, spacing: 3) {
+            VStack(alignment: .center, spacing: 1) {
+                ForEach(monthsInDisplayedYear, id: \.month) { month in
+                    Text("\(month.month)")
+                        .font(AppFont.monthLabel)
+                        .foregroundStyle(.secondary)
+                        .frame(width: monthLabelWidth, alignment: .center)
+                        .frame(height: rewardMarkerSlotSize)
+                }
+            }
+            .padding(.top, 3)
+            .offset(x: -4)
+
+            VStack(alignment: .leading, spacing: 1) {
+                ForEach(monthsInDisplayedYear, id: \.month) { month in
+                    LazyVGrid(columns: dayColumns, alignment: .leading, spacing: 4) {
+                        ForEach(month.days, id: \.self) { date in
+                            Button {
+                                // AppDelegate owns the detached detail popover,
+                                // so the dashboard only reports the clicked reward.
+                                onDateSelected(date)
+                            } label: {
+                                dayMarker(for: date)
+                            }
+                            .buttonStyle(.plain)
+                            .help(date.formatted(date: .abbreviated, time: .omitted))
+                        }
+                    }
+                    .frame(height: rewardMarkerSlotSize)
+                }
+            }
+            .padding(.top, 3)
+            .padding(.leading, 1)
+            .padding(.trailing, 6)
+            .padding(.bottom, 6)
+            // Keep the ordered reward grid on a clean white field.
+            .background(Color.white)
+        }
+    }
+
     @ViewBuilder
     private func dayMarker(for date: Date) -> some View {
         let padding = markerPadding(for: date)
         let offset = markerOffset(for: date)
+        let scale = markerScale(for: date)
 
         if let rewardImage = Self.todayRewardImage {
             Image(nsImage: rewardImage)
@@ -145,8 +141,9 @@ struct DashboardView: View {
                 .interpolation(.high)
                 .scaledToFit()
                 // The fixed outer slot keeps every calendar cell stable while the
-                // inner padding/offset gives the repeated reward art variation.
+                // scale/padding/offset gives the repeated reward art variation.
                 .frame(width: rewardMarkerSize, height: rewardMarkerSize)
+                .scaleEffect(scale)
                 .padding(padding)
                 .offset(x: offset.width, y: offset.height)
                 .frame(width: rewardMarkerSlotSize, height: rewardMarkerSlotSize)
@@ -155,6 +152,7 @@ struct DashboardView: View {
             Circle()
                 .fill(Color.secondary.opacity(0.35))
                 .frame(width: rewardMarkerSize, height: rewardMarkerSize)
+                .scaleEffect(scale)
                 .padding(padding)
                 .offset(x: offset.width, y: offset.height)
                 .frame(width: rewardMarkerSlotSize, height: rewardMarkerSlotSize)
@@ -181,6 +179,16 @@ struct DashboardView: View {
             width: CGFloat((day % 3) - 1) * 0.6,
             height: CGFloat(((day / 2) % 3) - 1) * 0.6
         )
+    }
+
+    private func markerScale(for date: Date) -> CGFloat {
+        let day = calendar.component(.day, from: date)
+        let month = calendar.component(.month, from: date)
+
+        // Deterministic size variation keeps the yearly rewards organic without
+        // changing each cell's outer layout slot.
+        let variants: [CGFloat] = [0.94, 0.98, 1.0, 1.03, 1.06]
+        return variants[(day + month) % variants.count]
     }
 
     private var firstDayOfDisplayedYear: Date {
