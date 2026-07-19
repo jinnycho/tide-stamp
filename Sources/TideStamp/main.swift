@@ -8,12 +8,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let settingsPopover = NSPopover()
     private let dashboardPopover = NSPopover()
     private let dailyDetailsPopover = NSPopover()
+    private var quitMenuPanel: NSPanel?
     private var reminderBurstPanel: NSPanel?
     private var localMouseMonitor: Any?
     private var globalMouseMonitor: Any?
     private let settingsStore = ReminderSettingsStore()
     private let achievementStore = AchievementStore()
     private let dailyDetailsSelection = DailyDetailsSelection()
+    private let presentationState = PopoverPresentationState()
     private var reminderTimer: ReminderTimer?
     private var cancellables = Set<AnyCancellable>()
     private var isShowingReminderDot = false
@@ -36,7 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let contentView = ContentView(
             store: settingsStore,
             reminderTimer: reminderTimer,
-            achievementStore: achievementStore
+            achievementStore: achievementStore,
+            presentationState: presentationState
         ) { [weak self] in
             self?.toggleSettingsPopover()
         } onDashboardButtonClicked: { [weak self] in
@@ -92,7 +95,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.imagePosition = .imageOnly
         statusItem.button?.target = self
-        statusItem.button?.action = #selector(togglePopover)
+        statusItem.button?.action = #selector(handleStatusItemClick)
+        // The menu bar icon uses left click for Home and right click for the
+        // lightweight app menu, so ask AppKit to deliver both as button actions.
+        statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
 
         self.statusItem = statusItem
         updateStatusItemBadge()
@@ -127,7 +133,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         removeOutsideClickMonitors()
     }
 
-    @objc private func togglePopover() {
+    @objc private func handleStatusItemClick() {
+        if NSApp.currentEvent?.type == .rightMouseUp {
+            showStatusItemMenu()
+            return
+        }
+
+        togglePopover()
+    }
+
+    private func togglePopover() {
         // The popover needs the status bar button as its anchor point.
         guard let button = statusItem?.button else {
             return
@@ -145,6 +160,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settingsPopover.performClose(nil)
             dashboardPopover.performClose(nil)
             dailyDetailsPopover.performClose(nil)
+            presentationState.isSettingsShown = false
+            presentationState.isDashboardShown = false
             return
         }
 
@@ -156,6 +173,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         dashboardPopover.performClose(nil)
         dailyDetailsPopover.performClose(nil)
+        presentationState.isDashboardShown = false
 
         // Anchor settings to the left edge of the home popover. This makes it
         // feel like a separate nearby screen instead of one larger shared view.
@@ -164,6 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             of: homeView,
             preferredEdge: .minX
         )
+        presentationState.isSettingsShown = true
     }
 
     @objc private func toggleDashboardPopover() {
@@ -171,6 +190,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             dashboardPopover.performClose(nil)
             settingsPopover.performClose(nil)
             dailyDetailsPopover.performClose(nil)
+            presentationState.isDashboardShown = false
+            presentationState.isSettingsShown = false
             return
         }
 
@@ -182,6 +203,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         settingsPopover.performClose(nil)
         dailyDetailsPopover.performClose(nil)
+        presentationState.isSettingsShown = false
 
         let positioningRect = homeView.bounds.offsetBy(dx: -180, dy: 0)
 
@@ -190,6 +212,61 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             of: homeView,
             preferredEdge: .minX
         )
+        presentationState.isDashboardShown = true
+    }
+
+    private func showStatusItemMenu() {
+        guard let button = statusItem?.button else {
+            return
+        }
+
+        closeOpenSurfaces()
+
+        showQuitMenuPanel(below: button)
+    }
+
+    private func showQuitMenuPanel(below button: NSStatusBarButton) {
+        let panelSize = NSSize(width: 120, height: 36)
+        let buttonRectInScreen = button.window?.convertToScreen(button.frame) ?? .zero
+        let panelOrigin = NSPoint(
+            x: buttonRectInScreen.midX - panelSize.width / 2,
+            y: buttonRectInScreen.minY - panelSize.height - 4
+        )
+
+        quitMenuPanel?.close()
+
+        let panel = NSPanel(
+            contentRect: NSRect(origin: panelOrigin, size: panelSize),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.backgroundColor = NSColor.clear
+        panel.isOpaque = false
+        panel.hasShadow = true
+        panel.level = .statusBar
+        panel.collectionBehavior = [.canJoinAllSpaces, .transient]
+
+        let hostingView = NSHostingView(
+            rootView: StatusQuitMenuView { [weak self] in
+                self?.quitApp()
+            }
+        )
+        hostingView.frame = NSRect(origin: .zero, size: panelSize)
+        hostingView.wantsLayer = true
+        hostingView.layer?.cornerRadius = 8
+        hostingView.layer?.masksToBounds = true
+        panel.contentView = hostingView
+        panel.orderFrontRegardless()
+
+        // A borderless panel gives the right-click menu the flat rectangle shape
+        // of a menu-bar utility dropdown instead of NSPopover's arrowed bubble.
+        quitMenuPanel = panel
+    }
+
+    @objc private func quitApp() {
+        closeOpenSurfaces()
+        NSApp.terminate(nil)
     }
 
     private func showDailyDetails(for date: Date) {
@@ -315,6 +392,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settingsPopover.contentViewController?.view.window,
             dashboardPopover.contentViewController?.view.window,
             dailyDetailsPopover.contentViewController?.view.window,
+            quitMenuPanel,
             reminderBurstPanel
         ]
 
@@ -328,10 +406,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsPopover.performClose(nil)
         dashboardPopover.performClose(nil)
         dailyDetailsPopover.performClose(nil)
+        quitMenuPanel?.close()
+        quitMenuPanel = nil
         homePopover.performClose(nil)
         reminderBurstPanel?.close()
         reminderBurstPanel = nil
+        presentationState.isSettingsShown = false
+        presentationState.isDashboardShown = false
     }
+}
+
+private struct StatusQuitMenuView: View {
+    let onQuit: () -> Void
+    @State private var isHoveringQuit = false
+
+    var body: some View {
+        Button(action: onQuit) {
+            Text("Quit")
+                // Use the native Apple menu font for this flat utility menu,
+                // unlike the app popovers that intentionally use Tabular.
+                .font(.system(size: NSFont.menuFont(ofSize: 0).pointSize))
+                .foregroundStyle(isHoveringQuit ? Color.white : AppColors.primaryText)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHoveringQuit = $0 }
+        .background(
+            isHoveringQuit ? Color.accentColor.opacity(0.8) : AppColors.panelBackground.opacity(0.8)
+        )
+        .frame(width: 120, height: 36)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .background(AppColors.panelBackground.opacity(0.8))
+        .preferredColorScheme(.light)
+    }
+}
+
+final class PopoverPresentationState: ObservableObject {
+    // SwiftUI uses these values only for button styling; AppDelegate remains the
+    // source of truth for actual popover placement and dismissal.
+    @Published var isSettingsShown = false
+    @Published var isDashboardShown = false
 }
 
 private final class DailyDetailsSelection: ObservableObject {

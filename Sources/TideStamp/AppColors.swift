@@ -22,6 +22,12 @@ private extension Color {
 }
 
 struct FixedGrayButtonStyle: ButtonStyle {
+    let isActive: Bool
+
+    init(isActive: Bool = false) {
+        self.isActive = isActive
+    }
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(AppFont.body)
@@ -29,11 +35,11 @@ struct FixedGrayButtonStyle: ButtonStyle {
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             // Keep app buttons slightly darker than the fixed panel background
-            // and make press feedback deterministic across system appearances.
+            // and make press/active feedback deterministic across appearances.
             .background {
                 RoundedRectangle(cornerRadius: 5)
                     .fill(
-                        configuration.isPressed
+                        configuration.isPressed || isActive
                             ? AppColors.selectedControlBackground
                             : AppColors.controlBackground
                     )

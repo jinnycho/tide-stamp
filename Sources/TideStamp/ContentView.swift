@@ -4,6 +4,7 @@ struct ContentView: View {
     @ObservedObject var store: ReminderSettingsStore
     @ObservedObject var reminderTimer: ReminderTimer
     @ObservedObject var achievementStore: AchievementStore
+    @ObservedObject var presentationState: PopoverPresentationState
 
     // AppKit owns popover placement, so SwiftUI reports the button click upward.
     let onSettingsButtonClicked: () -> Void
@@ -14,6 +15,7 @@ struct ContentView: View {
             items: store.items,
             reminderTimer: reminderTimer,
             achievementStore: achievementStore,
+            presentationState: presentationState,
             onSettingsButtonClicked: onSettingsButtonClicked,
             onDashboardButtonClicked: onDashboardButtonClicked
         )
@@ -29,6 +31,7 @@ private struct HomeView: View {
     let items: [ReminderItem]
     @ObservedObject var reminderTimer: ReminderTimer
     @ObservedObject var achievementStore: AchievementStore
+    @ObservedObject var presentationState: PopoverPresentationState
     @State private var selectedTab = HomeTab.todo
 
     // This callback keeps HomeView simple: it does not need to know whether
@@ -98,12 +101,12 @@ private struct HomeView: View {
                 Button(action: onDashboardButtonClicked) {
                     Label("Dashboard", systemImage: "chart.dots.scatter")
                 }
-                .buttonStyle(FixedGrayButtonStyle())
+                .buttonStyle(FixedGrayButtonStyle(isActive: presentationState.isDashboardShown))
 
                 Button(action: onSettingsButtonClicked) {
                     Label("Settings", systemImage: "gearshape")
                 }
-                .buttonStyle(FixedGrayButtonStyle())
+                .buttonStyle(FixedGrayButtonStyle(isActive: presentationState.isSettingsShown))
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
