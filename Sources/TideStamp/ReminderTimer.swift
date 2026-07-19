@@ -4,10 +4,12 @@ final class ReminderTimer: ObservableObject {
     @Published private var now = Date()
     @Published private(set) var dueItemIDs: Set<UUID> = []
     @Published private var dueDates: [UUID: Date] = [:]
+    @Published private(set) var isPaused = false
 
     private var tickTimer: Timer?
     private var itemsByID: [UUID: ReminderItem] = [:]
     private var lastTickDate = Date()
+    private var pausedAt: Date?
     private let sleepGapThreshold: TimeInterval = 15
     private let onReminderReleased: (ReminderItem) -> Void
 
@@ -43,16 +45,13 @@ final class ReminderTimer: ObservableObject {
             }
         )
 
-        tickTimer?.invalidate()
-        tickTimer = nil
+        stopTickTimer()
 
-        guard !activeItems.isEmpty else {
+        guard !activeItems.isEmpty, !isPaused else {
             return
         }
 
-        tickTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            self?.tick()
-        }
+        startTickTimer()
     }
 
     private func nextDueDate(for item: ReminderItem) -> Date {
@@ -62,10 +61,54 @@ final class ReminderTimer: ObservableObject {
     }
 
     func stop() {
-        tickTimer?.invalidate()
-        tickTimer = nil
+        stopTickTimer()
         dueDates.removeAll()
         itemsByID.removeAll()
+        pausedAt = nil
+        isPaused = false
+    }
+
+    func pause() {
+        guard !isPaused else {
+            return
+        }
+
+        // Preserve current due dates and todos, but stop the repeating timer so
+        // no release callbacks, badge updates, or burst notifications happen.
+        now = Date()
+        pausedAt = now
+        isPaused = true
+        stopTickTimer()
+    }
+
+    func resume() {
+        guard isPaused else {
+            return
+        }
+
+        let resumedAt = Date()
+
+        if let pausedAt {
+            let pausedDuration = resumedAt.timeIntervalSince(pausedAt)
+            // Pause should freeze ticking time. Shift due dates forward by the
+            // full paused duration so reminders do not become due while paused.
+            dueDates = dueDates.mapValues { dueDate in
+                dueDate.addingTimeInterval(pausedDuration)
+            }
+        }
+
+        now = resumedAt
+        lastTickDate = resumedAt
+        pausedAt = nil
+        isPaused = false
+
+        if !itemsByID.isEmpty {
+            startTickTimer()
+        }
+    }
+
+    func togglePause() {
+        isPaused ? resume() : pause()
     }
 
     func completeTodo(for item: ReminderItem) {
@@ -86,6 +129,10 @@ final class ReminderTimer: ObservableObject {
     }
 
     private func tick() {
+        guard !isPaused else {
+            return
+        }
+
         let currentDate = Date()
         let elapsedSinceLastTick = currentDate.timeIntervalSince(lastTickDate)
 
@@ -118,5 +165,17 @@ final class ReminderTimer: ObservableObject {
             dueDates[id] = now.addingTimeInterval(
                 item.intervalMinutes == 0 ? 30 : TimeInterval(item.intervalMinutes * 60))
         }
+    }
+
+    private func startTickTimer() {
+        stopTickTimer()
+        tickTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+    }
+
+    private func stopTickTimer() {
+        tickTimer?.invalidate()
+        tickTimer = nil
     }
 }

@@ -77,6 +77,7 @@ struct SettingsView: View {
                     Text(isEditing ? "Done" : "Edit")
                         .font(AppFont.body)
                 }
+                .buttonStyle(FixedGrayButtonStyle())
             }
 
             List {
@@ -88,6 +89,9 @@ struct SettingsView: View {
                             store.removeItem(item)
                         }
                     )
+                    // Settings keeps the outer popover grey, but the editable
+                    // reminder content itself should sit on white.
+                    .listRowBackground(AppColors.dashboardBackground)
                 }
 
                 if isEditing {
@@ -100,11 +104,18 @@ struct SettingsView: View {
                                 .font(AppFont.body)
                         }
                     }
+                    .buttonStyle(FixedGrayButtonStyle())
+                    .listRowBackground(AppColors.dashboardBackground)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(AppColors.dashboardBackground)
         }
         .padding()
         .font(AppFont.body)
+        .background(AppColors.panelBackground)
+        .foregroundStyle(AppColors.primaryText)
+        .preferredColorScheme(.light)
     }
 }
 
@@ -120,7 +131,7 @@ private struct ReminderItemRow: View {
                 Button(action: onDelete) {
                     Image(systemName: "trash")
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(FixedGrayButtonStyle())
                 .foregroundStyle(.red)
             }
 
@@ -135,7 +146,7 @@ private struct ReminderItemRow: View {
                 HStack {
                     Text("Every")
                         .font(AppFont.body)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppColors.secondaryText)
 
                     Stepper(
                         value: intervalStepperBinding,
@@ -159,7 +170,7 @@ private struct ReminderItemRow: View {
 
                             Text("min")
                                 .font(AppFont.body)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppColors.secondaryText)
                         }
                     }
                     .disabled(!isEditing)
