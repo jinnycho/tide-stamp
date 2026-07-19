@@ -46,7 +46,7 @@ private struct HomeView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Use a SwiftUI-built switcher instead of TabView so the Todo/Ticking
             // labels use the bundled Tabular font instead of AppKit's tab font.
-            HStack(spacing: 4) {
+            HStack(spacing: 6) {
                 ForEach(HomeTab.allCases) { tab in
                     Button {
                         selectedTab = tab
@@ -198,13 +198,12 @@ private struct TickingListView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(items) { item in
-                HStack(spacing: 4) {
+                HStack(spacing: 3) {
                     Text(item.title)
                         .font(AppFont.body)
                         .lineLimit(1)
-                        .layoutPriority(1)
 
-                    Spacer(minLength: 4)
+                    Spacer()
 
                     Text(timeRemainingText(item))
                         .font(AppFont.body)
