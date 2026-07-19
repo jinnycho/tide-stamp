@@ -4,9 +4,10 @@ import SwiftUI
 struct DashboardView: View {
     @ObservedObject var settingsStore: ReminderSettingsStore
     @ObservedObject var achievementStore: AchievementStore
+    let onDateSelected: (Date) -> Void
+    let onCloseButtonClicked: () -> Void
 
     @State private var displayedYear = Calendar.current.component(.year, from: Date())
-    @State private var selectedDate = Date()
 
     private let calendar = Calendar.current
     // Flexible columns use the full dashboard width so the reward markers spread
@@ -16,7 +17,6 @@ struct DashboardView: View {
     private let monthLabelWidth: CGFloat = 10
     private let rewardMarkerSize: CGFloat = 19
     private let rewardMarkerSlotSize: CGFloat = 20
-    private let selectedDayDetailHeight: CGFloat = 90
 
     // SwiftPM flattens processed resource paths here, so reward1.png is loaded
     // from the bundle root even though the source file lives in Assets/rewards.
@@ -33,13 +33,12 @@ struct DashboardView: View {
     }()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 2) {
             // Keep the year controls compact so the dashboard reads as a calendar
             // first, rather than giving the navigation row the whole popover width.
             HStack(spacing: 8) {
                 Button {
                     displayedYear -= 1
-                    selectedDate = firstDayOfDisplayedYear
                 } label: {
                     Image(systemName: "chevron.left")
                 }
@@ -52,7 +51,6 @@ struct DashboardView: View {
 
                 Button {
                     displayedYear += 1
-                    selectedDate = firstDayOfDisplayedYear
                 } label: {
                     Image(systemName: "chevron.right")
                 }
@@ -60,22 +58,32 @@ struct DashboardView: View {
                 .frame(width: 22, height: 22)
             }
             .frame(maxWidth: .infinity)
+            // Overlay the close control so it does not increase the dashboard
+            // header height or add extra margin above the reward grid.
+            .overlay(alignment: .trailing) {
+                Button(action: onCloseButtonClicked) {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.borderless)
+                .frame(width: 22, height: 22)
+                .help("Close")
+            }
 
             // Keep month labels outside the off-white reward panel while the
             // reward image grid still reads as one continuous yearly section.
             HStack(alignment: .top, spacing: 2) {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .center, spacing: 8) {
                     ForEach(monthsInDisplayedYear, id: \.month) { month in
                         Text("\(month.month)")
                             .font(AppFont.monthLabel)
                             .foregroundStyle(.secondary)
-                            .frame(width: monthLabelWidth, alignment: .leading)
+                            .frame(width: monthLabelWidth, alignment: .center)
                             .frame(height: rewardMarkerSlotSize)
                     }
                 }
                 // Match the panel's top padding so labels align with the first
                 // reward row even though the labels sit outside the background.
-                .padding(.top, 6)
+                .padding(.top, 2)
                 // Nudge only the month numbers left while keeping the reward
                 // panel and grid in their current position.
                 .offset(x: -4)
@@ -87,7 +95,9 @@ struct DashboardView: View {
                         LazyVGrid(columns: dayColumns, alignment: .leading, spacing: 6) {
                             ForEach(month.days, id: \.self) { date in
                                 Button {
-                                    selectedDate = date
+                                    // AppDelegate owns the detached detail popover,
+                                    // so the dashboard only reports the clicked reward.
+                                    onDateSelected(date)
                                 } label: {
                                     dayMarker(for: date)
                                 }
@@ -98,7 +108,7 @@ struct DashboardView: View {
                         .frame(height: rewardMarkerSlotSize)
                     }
                 }
-                .padding(.top, 6)
+                .padding(.top, 2)
                 .padding(.leading, 1)
                 .padding(.trailing, 6)
                 .padding(.bottom, 6)
@@ -107,51 +117,18 @@ struct DashboardView: View {
                 .background(Color(red: 0xFF / 255, green: 0xFF / 255, blue: 0xFF / 255))
             }
             .padding(.vertical, 2)
-            // The year row and daily detail keep their fixed heights. Any extra
-            // dashboard height is assigned to the reward-image calendar area.
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-
-            selectedDayDetail
+            // Keep the reward grid directly below the year controls. Since daily
+            // details now live in a separate popover, centering this flexible area
+            // creates an unwanted gap under the dashboard close button.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        // Keep the dashboard content inset from the popover edges so the yearly
-        // reward panel and daily detail do not feel cramped.
-        .padding(12)
+        // Match main's left inset so the dashboard content opens at its original
+        // horizontal position, while keeping extra breathing room elsewhere.
+        .padding(.top, 6)
+        .padding(.horizontal, 6)
+        // .padding(.trailing, 12)
+        .padding(.bottom, 10)
         .font(AppFont.body)
-    }
-
-    private var selectedDayDetail: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(selectedDate.formatted(date: .complete, time: .omitted))
-                .font(AppFont.headline)
-
-            let items = achievementStore.trackedItemsWithProgress(on: selectedDate)
-
-            if items.isEmpty {
-                Text("No reminder items")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 6) {
-                        ForEach(items) { item in
-                            HStack {
-                                Text(item.title)
-                                    .lineLimit(1)
-
-                                Spacer()
-
-                                Text(progressText(for: item))
-                                    .font(AppFont.body)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.vertical, 2)
-                        }
-                    }
-                }
-                .scrollIndicators(.visible)
-            }
-        }
-        .frame(height: selectedDayDetailHeight)
     }
 
     @ViewBuilder
@@ -223,8 +200,70 @@ struct DashboardView: View {
             )
         }
     }
+}
 
-    private func progressText(for item: TrackedReminderItem) -> String {
+final class DailyDetailSelectionStore: ObservableObject {
+    // Keep the daily detail popover's hosting controller stable while clicks
+    // update only the selected date rendered inside that existing popover.
+    @Published var selectedDate = Date()
+}
+
+struct DailyDetailView: View {
+    @ObservedObject var achievementStore: AchievementStore
+    @ObservedObject var selectionStore: DailyDetailSelectionStore
+    let onCloseButtonClicked: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(selectionStore.selectedDate.formatted(date: .complete, time: .omitted))
+                    .font(AppFont.headline)
+
+                Spacer()
+
+                Button(action: onCloseButtonClicked) {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.borderless)
+                .help("Close")
+            }
+
+            let items = achievementStore.trackedItemsWithProgress(on: selectionStore.selectedDate)
+
+            if items.isEmpty {
+                Text("No reminder items")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 6) {
+                        ForEach(items) { item in
+                            HStack {
+                                Text(item.title)
+                                    .lineLimit(1)
+
+                                Spacer()
+
+                                Text(progressText(for: item, on: selectionStore.selectedDate))
+                                    .font(AppFont.body)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    }
+                }
+                .scrollIndicators(.visible)
+            }
+        }
+        // This view lives in its own popover, so its background fills the whole
+        // separate block below the main home view.
+        .padding()
+        .background(Color(red: 0xFA / 255, green: 0xFA / 255, blue: 0xFA / 255))
+        .frame(width: 280, height: 220)
+        .font(AppFont.body)
+    }
+
+    private func progressText(for item: TrackedReminderItem, on selectedDate: Date) -> String {
         let progress = achievementStore.progress(for: item, on: selectedDate)
         return "\(progress.completed)/\(progress.released)"
     }

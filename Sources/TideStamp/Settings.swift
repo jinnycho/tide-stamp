@@ -59,6 +59,7 @@ final class ReminderSettingsStore: ObservableObject {
 struct SettingsView: View {
     // ObservedObject means this view redraws when the shared settings store changes.
     @ObservedObject var store: ReminderSettingsStore
+    let onCloseButtonClicked: () -> Void
     @State private var isEditing = false
 
     var body: some View {
@@ -77,6 +78,12 @@ struct SettingsView: View {
                     Text(isEditing ? "Done" : "Edit")
                         .font(AppFont.body)
                 }
+
+                Button(action: onCloseButtonClicked) {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.borderless)
+                .help("Close")
             }
 
             List {
