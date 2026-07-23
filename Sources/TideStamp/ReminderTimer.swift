@@ -57,7 +57,7 @@ final class ReminderTimer: ObservableObject {
     private func nextDueDate(for item: ReminderItem) -> Date {
         // 0 minutes is a temporary fast interval for testing reminders.
         Date().addingTimeInterval(
-            item.intervalMinutes == 0 ? 30 : TimeInterval(item.intervalMinutes * 60))
+            item.intervalMinutes == 0 ? 10 : TimeInterval(item.intervalMinutes * 60))
     }
 
     func stop() {
@@ -163,7 +163,7 @@ final class ReminderTimer: ObservableObject {
             // countdown keeps showing the next interval.
             // 0 minutes is a temporary fast interval for testing reminders.
             dueDates[id] = now.addingTimeInterval(
-                item.intervalMinutes == 0 ? 30 : TimeInterval(item.intervalMinutes * 60))
+                item.intervalMinutes == 0 ? 10 : TimeInterval(item.intervalMinutes * 60))
         }
     }
 

@@ -29,7 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // due item is still unchecked. Keep the large burst tied to the
             // release event itself instead of the aggregate due/non-due state.
             self?.achievementStore.recordRelease(for: item)
-            self?.showReminderBurst()
+            self?.showReminderBurst(for: item)
         }
         self.reminderTimer = reminderTimer
 
@@ -304,23 +304,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    private func showReminderBurst() {
+    private func showReminderBurst(for item: ReminderItem) {
         guard let button = statusItem?.button else {
             return
         }
 
         let panelSize = NSSize(
-            width: ReminderBurstView.displaySize,
-            height: ReminderBurstView.displaySize
+            width: ReminderBurstView.displaySize.width,
+            height: ReminderBurstView.displaySize.height
         )
         let screenFrame =
-            button.window?.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .zero
-        let topRightMargin: CGFloat = 16
+            button.window?.screen?.frame ?? NSScreen.main?.frame ?? .zero
+        let topRightMargin: CGFloat = 4
         let panelOrigin = NSPoint(
-            // Put the animation near the top-right of the active laptop screen
-            // instead of attaching it to the menu-bar status item.
+            // Use the full screen frame, not visibleFrame, so the notification
+            // starts at the very top and can cover the menu bar date/time area.
             x: screenFrame.maxX - panelSize.width - topRightMargin,
-            y: screenFrame.maxY - panelSize.height - topRightMargin
+            y: screenFrame.maxY - panelSize.height
         )
 
         reminderBurstPanel?.close()
@@ -338,7 +338,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.ignoresMouseEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .transient]
 
-        let hostingView = NSHostingView(rootView: ReminderBurstView())
+        let hostingView = NSHostingView(rootView: ReminderBurstView(title: item.title))
         hostingView.frame = NSRect(origin: .zero, size: panelSize)
         hostingView.wantsLayer = true
         hostingView.layer?.backgroundColor = NSColor.clear.cgColor
