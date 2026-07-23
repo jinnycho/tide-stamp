@@ -68,7 +68,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dashboardPopover.behavior = .applicationDefined
         dashboardPopover.contentViewController = NSHostingController(
             rootView: DashboardView(
-                achievementStore: achievementStore
+                achievementStore: achievementStore,
+                presentationState: presentationState
             ) { [weak self] date in
                 self?.showDailyDetails(for: date)
             }
@@ -213,6 +214,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preferredEdge: .minX
         )
         presentationState.isDashboardShown = true
+        presentationState.dashboardAnimationToken = UUID()
     }
 
     private func showStatusItemMenu() {
@@ -486,6 +488,7 @@ final class PopoverPresentationState: ObservableObject {
     // source of truth for actual popover placement and dismissal.
     @Published var isSettingsShown = false
     @Published var isDashboardShown = false
+    @Published var dashboardAnimationToken = UUID()
 }
 
 private final class DailyDetailsSelection: ObservableObject {
