@@ -8,7 +8,7 @@ struct ReminderBurstView: View {
     private static let feedCycleCount = 7
     private static let initialVisibleFraction: CGFloat = 0.10
     private static let feedAdvanceFraction: CGFloat = 0.15
-    private static let feedBackstepFraction: CGFloat = 0.02
+    private static let feedBackstepFraction: CGFloat = 0.008
 
     private static let notificationImage: NSImage? = {
         // SwiftPM flattens processed asset paths into the resource bundle root,
@@ -25,18 +25,40 @@ struct ReminderBurstView: View {
     }()
 
     private let startDate = Date()
+    let title: String
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
             if let notificationImage = Self.notificationImage {
                 let paperOffset = paperOffset(at: timeline.date)
 
-                Image(nsImage: notificationImage)
-                    .resizable()
-                    .scaledToFit()
+                ZStack {
+                    Image(nsImage: notificationImage)
+                        .resizable()
+                        .scaledToFit()
+
+                    VStack {
+                        Spacer()
+
+                        Text(title)
+                            .font(AppFont.notificationTitle)
+                            .foregroundStyle(Color.black)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.55)
+                            // Keep the printed reminder comfortably inside the
+                            // receipt image instead of touching the paper edges.
+                            .padding(.horizontal, 22)
+
+                        // Position the task just above the receipt's black edge
+                        // so it travels with the printed paper as it feeds out.
+                        Spacer()
+                            .frame(height: 58)
+                    }
+                }
                     .frame(width: Self.displaySize.width, height: Self.displaySize.height)
                     // Move the paper itself behind a fixed clipping window. This
-                    // makes the receipt's bottom edge/black line travel downward
+                    // makes the receipt image and title travel downward together
                     // as the leading edge, instead of appearing only at 100%.
                     .offset(y: paperOffset)
                     .frame(width: Self.displaySize.width, height: Self.displaySize.height)
@@ -69,12 +91,14 @@ struct ReminderBurstView: View {
 
         switch cycleProgress {
         case ..<0.38:
-            // Printer feed: push the paper down in a visible chunk.
-            let progress = CGFloat(cycleProgress / 0.38)
+            // Printer feed: push the paper down in a visible chunk, but ease
+            // each chunk so the motion is less abrupt without becoming a slide.
+            let progress = smoothstep(CGFloat(cycleProgress / 0.38))
             fraction = settledBase + (Self.feedAdvanceFraction * progress)
         case ..<0.56:
-            // Mechanical slip: pull back slightly before the next feed.
-            let progress = CGFloat((cycleProgress - 0.38) / 0.18)
+            // Mechanical slip: keep the receipt-printer character, just make
+            // the backward motion subtle enough that it does not feel jumpy.
+            let progress = smoothstep(CGFloat((cycleProgress - 0.38) / 0.18))
             fraction =
                 settledBase + Self.feedAdvanceFraction
                 - (Self.feedBackstepFraction * progress)
@@ -84,5 +108,10 @@ struct ReminderBurstView: View {
         }
 
         return min(max(fraction, Self.initialVisibleFraction), 1)
+    }
+
+    private func smoothstep(_ progress: CGFloat) -> CGFloat {
+        let clampedProgress = min(max(progress, 0), 1)
+        return clampedProgress * clampedProgress * (3 - (2 * clampedProgress))
     }
 }

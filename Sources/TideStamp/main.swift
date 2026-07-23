@@ -29,7 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // due item is still unchecked. Keep the large burst tied to the
             // release event itself instead of the aggregate due/non-due state.
             self?.achievementStore.recordRelease(for: item)
-            self?.showReminderBurst()
+            self?.showReminderBurst(for: item)
         }
         self.reminderTimer = reminderTimer
 
@@ -304,7 +304,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    private func showReminderBurst() {
+    private func showReminderBurst(for item: ReminderItem) {
         guard let button = statusItem?.button else {
             return
         }
@@ -338,7 +338,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.ignoresMouseEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .transient]
 
-        let hostingView = NSHostingView(rootView: ReminderBurstView())
+        let hostingView = NSHostingView(rootView: ReminderBurstView(title: item.title))
         hostingView.frame = NSRect(origin: .zero, size: panelSize)
         hostingView.wantsLayer = true
         hostingView.layer?.backgroundColor = NSColor.clear.cgColor

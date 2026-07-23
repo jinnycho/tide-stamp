@@ -33,6 +33,12 @@ enum AppFont {
         Font.custom(semiboldFontName, size: NSFont.systemFontSize)
     }
 
+    static var notificationTitle: Font {
+        // The burst notification is much larger than the menu popovers, so it
+        // needs its own readable display size while keeping the same app font.
+        Font.custom(semiboldFontName, size: 22)
+    }
+
     static var monthLabel: Font {
         Font.custom(mediumFontName, size: 8)
     }
