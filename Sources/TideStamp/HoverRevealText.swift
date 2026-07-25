@@ -15,7 +15,9 @@ struct HoverRevealText: View {
             .truncationMode(.tail)
             // List rows clip SwiftUI overlays, so the full title is shown by a
             // separate AppKit floating panel anchored to this text view.
-            .background(HoverRevealAnchor(text: text, isEnabled: shouldRevealFullText))
+            .overlay {
+                HoverRevealAnchor(text: text, isEnabled: shouldRevealFullText)
+            }
             .help(text)
     }
 }
@@ -112,7 +114,7 @@ private final class HoverRevealPanel {
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = true
-        panel.level = .floating
+        panel.level = .popUpMenu
         panel.ignoresMouseEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .transient]
         panel.contentView = contentView

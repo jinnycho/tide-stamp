@@ -18,7 +18,6 @@ struct DashboardView: View {
     private let monthLabelWidth: CGFloat = 10
     private let rewardMarkerSize: CGFloat = 19
     private let rewardMarkerSlotSize: CGFloat = 20
-    private let todayDotSize: CGFloat = 5
     private let markerDiagonalRevealDelay: TimeInterval = 0.018
 
     // SwiftPM flattens processed resource paths here, so reward1.png is loaded
@@ -131,33 +130,15 @@ struct DashboardView: View {
                 .frame(width: rewardMarkerSlotSize, height: rewardMarkerSlotSize)
                 .opacity(isVisible ? 1 : 0)
                 .scaleEffect(isVisible ? 1 : 0.35)
-                .overlay(alignment: .topTrailing) {
-                    todayIndicator(isToday: isToday, isVisible: isVisible)
-                }
         } else {
             // Dates that are not earned yet still show as small dots so the
             // calendar remains readable without implying a reward was achieved.
             Circle()
-                .fill(Color.secondary.opacity(0.35))
+                .fill(isToday ? Color.red : Color.secondary.opacity(0.35))
                 .frame(width: 4, height: 4)
                 .frame(width: rewardMarkerSlotSize, height: rewardMarkerSlotSize)
                 .opacity(isVisible ? 1 : 0)
                 .scaleEffect(isVisible ? 1 : 0.35)
-                .overlay(alignment: .topTrailing) {
-                    todayIndicator(isToday: isToday, isVisible: isVisible)
-                }
-        }
-    }
-
-    @ViewBuilder
-    private func todayIndicator(isToday: Bool, isVisible: Bool) -> some View {
-        if isToday {
-            Circle()
-                .fill(Color.red)
-                // Keep today's marker independent from earned/empty day art so
-                // users can always find the current date at a glance.
-                .frame(width: todayDotSize, height: todayDotSize)
-                .opacity(isVisible ? 1 : 0)
         }
     }
 

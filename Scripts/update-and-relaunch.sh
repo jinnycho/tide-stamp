@@ -5,10 +5,19 @@ OLD_PID="${1:?missing old process id}"
 APP_PATH="${2:-/Applications/TideStamp.app}"
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 BUNDLER="${SWIFT_BUNDLER:-$HOME/.mint/bin/swift-bundler}"
+LOG_PATH="/tmp/tidestamp-update.log"
 
 notify() {
   /usr/bin/osascript -e "display notification \"$1\" with title \"TideStamp\""
 }
+
+fail() {
+  notify "Update failed. Reopening current app."
+  /usr/bin/open "$APP_PATH" || true
+}
+
+trap fail ERR
+exec >>"$LOG_PATH" 2>&1
 
 notify "Updating from origin/main..."
 
@@ -29,9 +38,18 @@ cd "$REPO_DIR"
 
 "$BUNDLER" bundle TideStamp --bundler darwinApp -c release
 
+NEW_APP="$REPO_DIR/.build/bundler/apps/TideStamp/TideStamp.app"
+BACKUP_APP="/tmp/TideStamp.previous.app"
+
+/bin/rm -rf "$BACKUP_APP"
+if [[ -d "$APP_PATH" ]]; then
+  /bin/cp -R "$APP_PATH" "$BACKUP_APP"
+fi
+
 /bin/rm -rf "$APP_PATH"
-/bin/cp -R "$REPO_DIR/.build/bundler/apps/TideStamp/TideStamp.app" "$APP_PATH"
+/bin/cp -R "$NEW_APP" "$APP_PATH"
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_PATH"
 /usr/bin/open "$APP_PATH"
 
+trap - ERR
 notify "Update complete."
