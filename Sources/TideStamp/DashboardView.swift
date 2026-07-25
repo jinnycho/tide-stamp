@@ -81,6 +81,10 @@ struct DashboardView: View {
                                     dayMarker(for: date)
                                 }
                                 .buttonStyle(.plain)
+                                // The markers open day details, but plain
+                                // buttons do not automatically advertise that
+                                // clickability with the cursor on macOS.
+                                .cursor(.pointingHand)
                                 .help(date.formatted(date: .abbreviated, time: .omitted))
                             }
                         }
@@ -227,6 +231,48 @@ struct DashboardView: View {
 private struct MonthDays {
     let month: Int
     let days: [Date]
+}
+
+private extension View {
+    func cursor(_ cursor: NSCursor) -> some View {
+        overlay(CursorTrackingView(cursor: cursor))
+    }
+}
+
+private struct CursorTrackingView: NSViewRepresentable {
+    let cursor: NSCursor
+
+    func makeNSView(context: Context) -> CursorTrackingNSView {
+        CursorTrackingNSView(cursor: cursor)
+    }
+
+    func updateNSView(_ nsView: CursorTrackingNSView, context: Context) {
+        nsView.cursor = cursor
+    }
+}
+
+private final class CursorTrackingNSView: NSView {
+    var cursor: NSCursor {
+        didSet {
+            window?.invalidateCursorRects(for: self)
+        }
+    }
+
+    init(cursor: NSCursor) {
+        self.cursor = cursor
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func resetCursorRects() {
+        // Cursor rects are AppKit's native way to advertise pointer affordances;
+        // this avoids SwiftUI hover callbacks fighting the default arrow cursor.
+        addCursorRect(bounds, cursor: cursor)
+    }
 }
 
 struct DailyDetailsView: View {
