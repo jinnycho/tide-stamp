@@ -24,3 +24,7 @@ swift run TideStamp
 - key: `trackedReminderItems`
 - stored: id, title, intervalMinutes, firstActiveDay, deletedDay
 - To delete: `defaults delete TideStamp trackedReminderItems`
+
+## To manually quit and reopne
+1. `killall TideStamp`
+2. `open /Applications/TideStamp.app`
