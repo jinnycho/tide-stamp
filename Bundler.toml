@@ -9,3 +9,6 @@ category = 'public.app-category.productivity'
 [apps.TideStamp.plist]
 # Run TideStamp as a menu-bar utility: no Dock icon and no Cmd-Tab entry.
 LSUIElement = true
+# Development-only updater: the installed app uses this checkout to pull,
+# rebuild, reinstall, and relaunch itself from origin/main.
+DevelopmentRepositoryPath = '/Users/jinnych/development/tide-stamp'

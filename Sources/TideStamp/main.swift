@@ -232,7 +232,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        let panelSize = NSSize(width: 120, height: 68)
+        let panelSize = NSSize(width: 120, height: 102)
         let buttonRectInScreen = button.window?.convertToScreen(button.frame) ?? .zero
         let panelOrigin = NSPoint(
             x: buttonRectInScreen.midX - panelSize.width / 2,
@@ -261,6 +261,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     self?.quitMenuPanel?.close()
                     self?.quitMenuPanel = nil
                 },
+                onUpdateClicked: { [weak self] in
+                    self?.updateAppFromMain()
+                },
                 onQuitClicked: { [weak self] in
                     self?.quitApp()
                 }
@@ -281,6 +284,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func quitApp() {
         closeOpenSurfaces()
         NSApp.terminate(nil)
+    }
+
+    private func updateAppFromMain() {
+        quitMenuPanel?.close()
+        quitMenuPanel = nil
+
+        let repoPath =
+            Bundle.main.object(forInfoDictionaryKey: "DevelopmentRepositoryPath") as? String
+            ?? "/Users/jinnych/development/tide-stamp"
+        let scriptPath = "\(repoPath)/Scripts/update-and-relaunch.sh"
+
+        guard FileManager.default.isExecutableFile(atPath: scriptPath) else {
+            showUpdaterLaunchFailure("Missing executable updater script at \(scriptPath).")
+            return
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.arguments = [
+            scriptPath,
+            String(ProcessInfo.processInfo.processIdentifier),
+            Bundle.main.bundlePath
+        ]
+
+        do {
+            try process.run()
+            // The updater waits for this process to exit before replacing the
+            // app bundle, so terminate only after the helper launches cleanly.
+            NSApp.terminate(nil)
+        } catch {
+            showUpdaterLaunchFailure("Could not start updater: \(error.localizedDescription)")
+        }
+    }
+
+    private func showUpdaterLaunchFailure(_ message: String) {
+        let alert = NSAlert()
+        alert.messageText = "Update failed"
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.runModal()
     }
 
     private func showDailyDetails(for date: Date) {
@@ -433,6 +476,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 private struct StatusQuitMenuView: View {
     @ObservedObject var reminderTimer: ReminderTimer
     let onPauseClicked: () -> Void
+    let onUpdateClicked: () -> Void
     let onQuitClicked: () -> Void
 
     var body: some View {
@@ -449,11 +493,21 @@ private struct StatusQuitMenuView: View {
                 .padding(.horizontal, 8)
 
             StatusMenuRow(
+                title: "Update",
+                action: onUpdateClicked
+            )
+
+            Divider()
+                // Match the native utility-menu rhythm between every action.
+                .background(AppColors.controlBackground.opacity(0.55))
+                .padding(.horizontal, 8)
+
+            StatusMenuRow(
                 title: "Quit",
                 action: onQuitClicked
             )
         }
-        .frame(width: 120, height: 68)
+        .frame(width: 120, height: 102)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .background(AppColors.panelBackground.opacity(0.8))
         .preferredColorScheme(.light)
