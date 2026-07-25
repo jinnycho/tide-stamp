@@ -9,6 +9,7 @@ struct DashboardView: View {
     @State private var displayedYear = Calendar.current.component(.year, from: Date())
     @State private var visibleMarkerIDs: Set<String> = []
     @State private var markerAnimationRunID = UUID()
+    @State private var hoveredMarkerID: String?
 
     private let calendar = Calendar.current
     // Flexible columns use the full dashboard width so the reward markers spread
@@ -81,10 +82,12 @@ struct DashboardView: View {
                                     dayMarker(for: date)
                                 }
                                 .buttonStyle(.plain)
-                                // The markers open day details, but plain
-                                // buttons do not automatically advertise that
-                                // clickability with the cursor on macOS.
-                                .cursor(.pointingHand)
+                                // Track hover on the full clickable day cell;
+                                // nested marker hover is unreliable inside a
+                                // plain Button in LazyVGrid.
+                                .onHover { isHovering in
+                                    hoveredMarkerID = isHovering ? markerID(for: date) : nil
+                                }
                                 .help(date.formatted(date: .abbreviated, time: .omitted))
                             }
                         }
@@ -133,17 +136,32 @@ struct DashboardView: View {
                 .offset(x: offset.width, y: offset.height)
                 .frame(width: rewardMarkerSlotSize, height: rewardMarkerSlotSize)
                 .opacity(isVisible ? 1 : 0)
-                .scaleEffect(isVisible ? 1 : 0.35)
+                .scaleEffect(markerScale(isVisible: isVisible, markerID: markerID))
+                .animation(.spring(response: 0.16, dampingFraction: 0.7), value: hoveredMarkerID)
         } else {
             // Dates that are not earned yet still show as small dots so the
             // calendar remains readable without implying a reward was achieved.
-            Circle()
-                .fill(isToday ? Color.red : Color.secondary.opacity(0.35))
-                .frame(width: 4, height: 4)
+            ZStack {
+                Circle()
+                    .fill(isToday ? Color.red : Color.secondary.opacity(0.35))
+                    .frame(width: 4, height: 4)
+            }
+                // Give the tiny dot a small practical hover target without
+                // turning the entire 20pt calendar cell into a hand cursor.
+                .frame(width: 8, height: 8)
                 .frame(width: rewardMarkerSlotSize, height: rewardMarkerSlotSize)
                 .opacity(isVisible ? 1 : 0)
-                .scaleEffect(isVisible ? 1 : 0.35)
+                .scaleEffect(markerScale(isVisible: isVisible, markerID: markerID))
+                .animation(.spring(response: 0.16, dampingFraction: 0.7), value: hoveredMarkerID)
         }
+    }
+
+    private func markerScale(isVisible: Bool, markerID: String) -> CGFloat {
+        guard isVisible else {
+            return 0.35
+        }
+
+        return hoveredMarkerID == markerID ? 1.9 : 1
     }
 
     private func animateCalendarMarkers() {
@@ -231,48 +249,6 @@ struct DashboardView: View {
 private struct MonthDays {
     let month: Int
     let days: [Date]
-}
-
-private extension View {
-    func cursor(_ cursor: NSCursor) -> some View {
-        overlay(CursorTrackingView(cursor: cursor))
-    }
-}
-
-private struct CursorTrackingView: NSViewRepresentable {
-    let cursor: NSCursor
-
-    func makeNSView(context: Context) -> CursorTrackingNSView {
-        CursorTrackingNSView(cursor: cursor)
-    }
-
-    func updateNSView(_ nsView: CursorTrackingNSView, context: Context) {
-        nsView.cursor = cursor
-    }
-}
-
-private final class CursorTrackingNSView: NSView {
-    var cursor: NSCursor {
-        didSet {
-            window?.invalidateCursorRects(for: self)
-        }
-    }
-
-    init(cursor: NSCursor) {
-        self.cursor = cursor
-        super.init(frame: .zero)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        nil
-    }
-
-    override func resetCursorRects() {
-        // Cursor rects are AppKit's native way to advertise pointer affordances;
-        // this avoids SwiftUI hover callbacks fighting the default arrow cursor.
-        addCursorRect(bounds, cursor: cursor)
-    }
 }
 
 struct DailyDetailsView: View {
