@@ -173,9 +173,7 @@ private struct TodoListView: View {
                 } label: {
                     HStack {
                         Image(systemName: "circle")
-                        Text(item.title)
-                            .font(AppFont.body)
-                            .lineLimit(1)
+                        HoverRevealText(text: item.title)
                     }
                 }
                 .buttonStyle(.plain)
@@ -202,9 +200,7 @@ private struct TickingListView: View {
         } else {
             List(items) { item in
                 HStack(spacing: 3) {
-                    Text(item.title)
-                        .font(AppFont.body)
-                        .lineLimit(1)
+                    HoverRevealText(text: item.title)
 
                     Spacer()
 
