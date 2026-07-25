@@ -1,0 +1,11 @@
+format_version = 2
+
+[apps.TideStamp]
+identifier = 'com.jinnych.TideStamp'
+product = 'TideStamp'
+version = '0.1.0'
+category = 'public.app-category.productivity'
+
+[apps.TideStamp.plist]
+# Run TideStamp as a menu-bar utility: no Dock icon and no Cmd-Tab entry.
+LSUIElement = true
