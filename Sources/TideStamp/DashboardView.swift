@@ -3,9 +3,12 @@ import SwiftUI
 
 struct DashboardView: View {
     @ObservedObject var achievementStore: AchievementStore
+    @ObservedObject var presentationState: PopoverPresentationState
     let onRewardClicked: (Date) -> Void
 
     @State private var displayedYear = Calendar.current.component(.year, from: Date())
+    @State private var visibleMarkerIDs: Set<String> = []
+    @State private var markerAnimationRunID = UUID()
 
     private let calendar = Calendar.current
     // Flexible columns use the full dashboard width so the reward markers spread
@@ -15,6 +18,7 @@ struct DashboardView: View {
     private let monthLabelWidth: CGFloat = 10
     private let rewardMarkerSize: CGFloat = 19
     private let rewardMarkerSlotSize: CGFloat = 20
+    private let markerDiagonalRevealDelay: TimeInterval = 0.018
 
     // SwiftPM flattens processed resource paths here, so reward1.png is loaded
     // from the bundle root even though the source file lives in Assets/rewards.
@@ -94,14 +98,25 @@ struct DashboardView: View {
         .background(AppColors.dashboardBackground)
         .foregroundStyle(AppColors.primaryText)
         .preferredColorScheme(.light)
+        .onAppear {
+            animateCalendarMarkers()
+        }
+        .onChange(of: displayedYear) { _ in
+            animateCalendarMarkers()
+        }
+        .onChange(of: presentationState.dashboardAnimationToken) { _ in
+            animateCalendarMarkers()
+        }
     }
 
     @ViewBuilder
     private func dayMarker(for date: Date) -> some View {
         let padding = markerPadding(for: date)
         let offset = markerOffset(for: date)
+        let markerID = markerID(for: date)
+        let isVisible = visibleMarkerIDs.contains(markerID)
 
-        if let rewardImage = Self.todayRewardImage {
+        if achievementStore.earnedReward(on: date), let rewardImage = Self.todayRewardImage {
             Image(nsImage: rewardImage)
                 .resizable()
                 .interpolation(.high)
@@ -112,15 +127,56 @@ struct DashboardView: View {
                 .padding(padding)
                 .offset(x: offset.width, y: offset.height)
                 .frame(width: rewardMarkerSlotSize, height: rewardMarkerSlotSize)
+                .opacity(isVisible ? 1 : 0)
+                .scaleEffect(isVisible ? 1 : 0.35)
         } else {
-            // Fallback keeps the calendar visible if the reward asset is missing.
+            // Dates that are not earned yet still show as small dots so the
+            // calendar remains readable without implying a reward was achieved.
             Circle()
                 .fill(Color.secondary.opacity(0.35))
-                .frame(width: rewardMarkerSize, height: rewardMarkerSize)
-                .padding(padding)
-                .offset(x: offset.width, y: offset.height)
+                .frame(width: 4, height: 4)
                 .frame(width: rewardMarkerSlotSize, height: rewardMarkerSlotSize)
+                .opacity(isVisible ? 1 : 0)
+                .scaleEffect(isVisible ? 1 : 0.35)
         }
+    }
+
+    private func animateCalendarMarkers() {
+        let runID = UUID()
+        markerAnimationRunID = runID
+        visibleMarkerIDs = []
+
+        // Reveal cells in diagonal bands from top-left to bottom-right. This
+        // keeps the calendar lively while still finishing quickly when opened.
+        for date in allDisplayedDates {
+            DispatchQueue.main.asyncAfter(deadline: .now() + markerRevealDelay(for: date)) {
+                guard markerAnimationRunID == runID else {
+                    return
+                }
+
+                withAnimation(.spring(response: 0.22, dampingFraction: 0.78)) {
+                    _ = visibleMarkerIDs.insert(markerID(for: date))
+                }
+            }
+        }
+    }
+
+    private func markerRevealDelay(for date: Date) -> TimeInterval {
+        let components = calendar.dateComponents([.month, .day], from: date)
+        let monthIndex = max((components.month ?? 1) - 1, 0)
+        let dayIndex = max((components.day ?? 1) - 1, 0)
+
+        return Double(monthIndex + dayIndex) * markerDiagonalRevealDelay
+    }
+
+    private func markerID(for date: Date) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(
+            format: "%04d-%02d-%02d",
+            components.year ?? 0,
+            components.month ?? 0,
+            components.day ?? 0
+        )
     }
 
     private func markerPadding(for date: Date) -> EdgeInsets {
@@ -160,6 +216,10 @@ struct DashboardView: View {
                 days: days
             )
         }
+    }
+
+    private var allDisplayedDates: [Date] {
+        monthsInDisplayedYear.flatMap(\.days)
     }
 }
 

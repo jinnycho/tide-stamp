@@ -136,12 +136,16 @@ private struct ReminderItemRow: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                // Reminder contents are locked until the user explicitly enters edit mode.
-                TextField("What should Tide remind you about?", text: $item.title)
-                    // TextField is AppKit-backed on macOS, so do not rely on
-                    // inherited font styling from SettingsView.
-                    .font(AppFont.body)
-                    .disabled(!isEditing)
+                if isEditing {
+                    // Reminder contents are locked until the user explicitly
+                    // enters edit mode.
+                    TextField("What should Tide remind you about?", text: $item.title)
+                        // TextField is AppKit-backed on macOS, so do not rely on
+                        // inherited font styling from SettingsView.
+                        .font(AppFont.body)
+                } else {
+                    HoverRevealText(text: item.title)
+                }
 
                 HStack {
                     Text("Every")

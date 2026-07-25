@@ -114,6 +114,24 @@ final class AchievementStore: ObservableObject {
         return progressByDay[dayKey]?.values.contains { $0.completed > 0 } ?? false
     }
 
+    func earnedReward(on date: Date, asOf currentDate: Date = Date()) -> Bool {
+        guard calendar.startOfDay(for: date) < calendar.startOfDay(for: currentDate) else {
+            return false
+        }
+
+        let dayKey = Self.dayKey(for: date, calendar: calendar)
+        guard let dailyProgress = progressByDay[dayKey]?.values else {
+            return false
+        }
+
+        let releasedCount = dailyProgress.reduce(0) { $0 + $1.released }
+        let completedCount = dailyProgress.reduce(0) { $0 + $1.completed }
+
+        // Rewards are decided only after a day is over. Completing at least
+        // half of the released notifications earns that day's reward image.
+        return releasedCount > 0 && completedCount * 2 >= releasedCount
+    }
+
     private func updateProgress(
         for item: ReminderItem,
         on date: Date,

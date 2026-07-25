@@ -11,6 +11,7 @@ enum AppFont {
     ]
 
     private static let regularFontName = "Tabular-Regular"
+    private static let lightFontName = "Tabular-Light"
     private static let mediumFontName = "Tabular-Medium"
     private static let semiboldFontName = "Tabular-Semibold"
 
@@ -34,9 +35,9 @@ enum AppFont {
     }
 
     static var notificationTitle: Font {
-        // The burst notification is much larger than the menu popovers, so it
-        // needs its own readable display size while keeping the same app font.
-        Font.custom(semiboldFontName, size: 22)
+        // Match the receipt-style notification artwork with Tabular Light.
+        // 13.2pt is 40% smaller than the previous 22pt display size.
+        Font.custom(lightFontName, size: 13.2)
     }
 
     static var monthLabel: Font {
