@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let dailyDetailsPopover = NSPopover()
     private var quitMenuPanel: NSPanel?
     private var reminderBurstPanel: NSPanel?
+    private var queuedReminderBursts: [ReminderItem] = []
+    private var isShowingReminderBurst = false
     private var localMouseMonitor: Any?
     private var globalMouseMonitor: Any?
     private let settingsStore = ReminderSettingsStore()
@@ -29,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // due item is still unchecked. Keep the large burst tied to the
             // release event itself instead of the aggregate due/non-due state.
             self?.achievementStore.recordRelease(for: item)
-            self?.showReminderBurst(for: item)
+            self?.enqueueReminderBurst(for: item)
         }
         self.reminderTimer = reminderTimer
 
@@ -349,8 +351,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
+    private func enqueueReminderBurst(for item: ReminderItem) {
+        queuedReminderBursts.append(item)
+        showNextReminderBurstIfNeeded()
+    }
+
+    private func showNextReminderBurstIfNeeded() {
+        guard !isShowingReminderBurst, !queuedReminderBursts.isEmpty else {
+            return
+        }
+
+        isShowingReminderBurst = true
+        showReminderBurst(for: queuedReminderBursts.removeFirst())
+    }
+
     private func showReminderBurst(for item: ReminderItem) {
         guard let button = statusItem?.button else {
+            isShowingReminderBurst = false
+            showNextReminderBurstIfNeeded()
             return
         }
 
@@ -367,8 +385,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             x: screenFrame.maxX - panelSize.width - topRightMargin,
             y: screenFrame.maxY - panelSize.height
         )
-
-        reminderBurstPanel?.close()
 
         let panel = NSPanel(
             contentRect: NSRect(origin: panelOrigin, size: panelSize),
@@ -396,6 +412,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             [weak self] in
             self?.reminderBurstPanel?.close()
             self?.reminderBurstPanel = nil
+            self?.isShowingReminderBurst = false
+            self?.showNextReminderBurstIfNeeded()
         }
     }
 
@@ -468,6 +486,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         homePopover.performClose(nil)
         reminderBurstPanel?.close()
         reminderBurstPanel = nil
+        queuedReminderBursts.removeAll()
+        isShowingReminderBurst = false
         presentationState.isSettingsShown = false
         presentationState.isDashboardShown = false
     }
