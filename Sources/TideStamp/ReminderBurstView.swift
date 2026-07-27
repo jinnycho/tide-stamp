@@ -9,7 +9,7 @@ struct ReminderBurstView: View {
     private static let initialVisibleFraction: CGFloat = 0.10
     private static let feedAdvanceFraction: CGFloat = 0.15
     private static let feedBackstepFraction: CGFloat = 0.008
-    private static let titleLineLength = 16
+    private static let titleLineLength = 18
     private static let titleTopOffset: CGFloat = 134
 
     private static let notificationImage: NSImage? = {
