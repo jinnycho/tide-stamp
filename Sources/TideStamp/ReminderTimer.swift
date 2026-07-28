@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 final class ReminderTimer: ObservableObject {
@@ -11,6 +12,7 @@ final class ReminderTimer: ObservableObject {
     private var lastTickDate = Date()
     private var pausedAt: Date?
     private let sleepGapThreshold: TimeInterval = 15
+    private let displaySleepIdleThreshold: TimeInterval = 10 * 60
     private let onReminderReleased: (ReminderItem) -> Void
 
     init(onReminderReleased: @escaping (ReminderItem) -> Void = { _ in }) {
@@ -136,10 +138,11 @@ final class ReminderTimer: ObservableObject {
         let currentDate = Date()
         let elapsedSinceLastTick = currentDate.timeIntervalSince(lastTickDate)
 
-        if elapsedSinceLastTick > sleepGapThreshold {
+        if elapsedSinceLastTick > sleepGapThreshold || shouldTreatDisplayAsInactive {
             // Timer callbacks pause while the laptop sleeps. When the app wakes,
-            // shift due dates forward by the inactive gap so we only count
-            // reminders that had a chance to appear while the laptop was awake.
+            // or when the display is black while the app remains awake, shift
+            // due dates forward by the inactive gap so counts represent visible
+            // reminder time.
             dueDates = dueDates.mapValues { dueDate in
                 dueDate.addingTimeInterval(elapsedSinceLastTick)
             }
@@ -165,6 +168,40 @@ final class ReminderTimer: ObservableObject {
             dueDates[id] = now.addingTimeInterval(
                 item.intervalMinutes == 0 ? 10 : TimeInterval(item.intervalMinutes * 60))
         }
+    }
+
+    private var shouldTreatDisplayAsInactive: Bool {
+        secondsSinceLastUserInput > displaySleepIdleThreshold && isMainDisplayAsleep
+    }
+
+    private var isMainDisplayAsleep: Bool {
+        CGDisplayIsAsleep(CGMainDisplayID()) != 0
+    }
+
+    private var secondsSinceLastUserInput: TimeInterval {
+        let inputEventTypes: [CGEventType] = [
+            .leftMouseDown,
+            .rightMouseDown,
+            .otherMouseDown,
+            .leftMouseDragged,
+            .rightMouseDragged,
+            .otherMouseDragged,
+            .mouseMoved,
+            .scrollWheel,
+            .keyDown
+        ]
+
+        // CoreGraphics reports idle time by event type, so use the most recent
+        // common input event as the app's practical activity signal. This value
+        // only gates a display-sleep check; idle time alone never pauses counts.
+        return inputEventTypes
+            .map {
+                CGEventSource.secondsSinceLastEventType(
+                    .combinedSessionState,
+                    eventType: $0
+                )
+            }
+            .min() ?? 0
     }
 
     private func startTickTimer() {
