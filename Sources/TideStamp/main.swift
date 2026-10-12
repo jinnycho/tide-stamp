@@ -61,7 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsPopover.contentSize = NSSize(width: 380, height: 320)
         settingsPopover.behavior = .applicationDefined
         settingsPopover.contentViewController = NSHostingController(
-            rootView: SettingsView(store: settingsStore))
+            rootView: SettingsView(store: settingsStore, achievementStore: achievementStore))
 
         dashboardPopover.contentSize = NSSize(width: 530, height: 450)
         // Keep Dashboard open when reward clicks open the companion details

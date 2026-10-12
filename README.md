@@ -25,6 +25,11 @@ swift run TideStamp
 - stored: id, title, intervalMinutes, firstActiveDay, deletedDay
 - To delete: `defaults delete TideStamp trackedReminderItems`
 
+4. Reward achievement goal
+- key: `rewardThresholdPercent`
+- stored: required completion percentage (defaults to 50)
+- To reset: `defaults delete TideStamp rewardThresholdPercent`
+
 ## To manually quit and reopne
 1. `killall TideStamp`
 2. `open /Applications/TideStamp.app`
