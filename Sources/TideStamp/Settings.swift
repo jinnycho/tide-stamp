@@ -26,7 +26,8 @@ final class ReminderSettingsStore: ObservableObject {
         // UserDefaults is enough for this early version: it keeps settings after
         // relaunch without adding a database or file format yet.
         if let data = userDefaults.data(forKey: storageKey),
-           let items = try? JSONDecoder().decode([ReminderItem].self, from: data) {
+            let items = try? JSONDecoder().decode([ReminderItem].self, from: data)
+        {
             self.items = items
         } else {
             self.items = [

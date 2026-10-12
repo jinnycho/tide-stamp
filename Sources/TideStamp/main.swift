@@ -352,6 +352,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func enqueueReminderBurst(for item: ReminderItem) {
+        // Keep every release in order while the current reminder is visible.
         queuedReminderBursts.append(item)
         showNextReminderBurstIfNeeded()
     }
@@ -484,10 +485,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quitMenuPanel?.close()
         quitMenuPanel = nil
         homePopover.performClose(nil)
-        reminderBurstPanel?.close()
-        reminderBurstPanel = nil
-        queuedReminderBursts.removeAll()
-        isShowingReminderBurst = false
+        // Screen clicks dismiss app controls, but each reminder stays for its
+        // full animation and then advances to the next queued reminder.
         presentationState.isSettingsShown = false
         presentationState.isDashboardShown = false
     }
