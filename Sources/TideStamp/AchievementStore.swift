@@ -41,7 +41,7 @@ final class AchievementStore: ObservableObject {
     private let userDefaults: UserDefaults
     private let calendar: Calendar
 
-    init(userDefaults: UserDefaults = .standard, calendar: Calendar = .current) {
+    init(userDefaults: UserDefaults = AppPreferences.shared, calendar: Calendar = .current) {
         self.userDefaults = userDefaults
         self.calendar = calendar
         // Keep the existing 50% behavior until a goal is explicitly saved.

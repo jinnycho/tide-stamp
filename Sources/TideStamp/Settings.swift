@@ -20,7 +20,7 @@ final class ReminderSettingsStore: ObservableObject {
     private let storageKey = "reminderItems"
     private let userDefaults: UserDefaults
 
-    init(userDefaults: UserDefaults = .standard) {
+    init(userDefaults: UserDefaults = AppPreferences.shared) {
         self.userDefaults = userDefaults
 
         // UserDefaults is enough for this early version: it keeps settings after
