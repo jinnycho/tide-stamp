@@ -3,8 +3,9 @@ import SwiftUI
 
 struct ReminderBurstView: View {
     static let displaySize = NSSize(width: 216, height: 270)
-    static let animationDuration = 5.5
-    private static let feedCycleDuration = 0.50
+    // Printing takes 2.8 seconds, leaving 0.7 seconds to read the full receipt.
+    static let animationDuration: TimeInterval = 3.5
+    private static let feedCycleDuration = 0.40
     private static let feedCycleCount = 7
     private static let initialVisibleFraction: CGFloat = 0.10
     private static let feedAdvanceFraction: CGFloat = 0.15
