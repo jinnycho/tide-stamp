@@ -20,13 +20,14 @@ final class ReminderSettingsStore: ObservableObject {
     private let storageKey = "reminderItems"
     private let userDefaults: UserDefaults
 
-    init(userDefaults: UserDefaults = .standard) {
+    init(userDefaults: UserDefaults = AppPreferences.shared) {
         self.userDefaults = userDefaults
 
         // UserDefaults is enough for this early version: it keeps settings after
         // relaunch without adding a database or file format yet.
         if let data = userDefaults.data(forKey: storageKey),
-           let items = try? JSONDecoder().decode([ReminderItem].self, from: data) {
+            let items = try? JSONDecoder().decode([ReminderItem].self, from: data)
+        {
             self.items = items
         } else {
             self.items = [
@@ -59,7 +60,9 @@ final class ReminderSettingsStore: ObservableObject {
 struct SettingsView: View {
     // ObservedObject means this view redraws when the shared settings store changes.
     @ObservedObject var store: ReminderSettingsStore
+    @ObservedObject var achievementStore: AchievementStore
     @State private var isEditing = false
+    @State private var isAdjustingAchievement = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -70,7 +73,17 @@ struct SettingsView: View {
                 Spacer()
 
                 Button {
+                    isAdjustingAchievement.toggle()
+                    isEditing = false
+                } label: {
+                    Text(isAdjustingAchievement ? "Done" : "Goal")
+                        .font(AppFont.body)
+                }
+                .buttonStyle(FixedGrayButtonStyle())
+
+                Button {
                     isEditing.toggle()
+                    isAdjustingAchievement = false
                 } label: {
                     // Native macOS button labels do not always inherit the root
                     // SwiftUI font, so style this text explicitly.
@@ -78,6 +91,21 @@ struct SettingsView: View {
                         .font(AppFont.body)
                 }
                 .buttonStyle(FixedGrayButtonStyle())
+            }
+
+            if isAdjustingAchievement {
+                // Keep the reward goal next to the reminder settings while
+                // leaving the existing reminder list at its current size.
+                Stepper(
+                    value: Binding(
+                        get: { achievementStore.rewardThresholdPercent },
+                        set: { achievementStore.setRewardThresholdPercent($0) }
+                    ),
+                    in: 1...100
+                ) {
+                    Text("Earn a badge at \(achievementStore.rewardThresholdPercent)% completion")
+                        .font(AppFont.body)
+                }
             }
 
             List {

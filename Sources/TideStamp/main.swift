@@ -61,7 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsPopover.contentSize = NSSize(width: 380, height: 320)
         settingsPopover.behavior = .applicationDefined
         settingsPopover.contentViewController = NSHostingController(
-            rootView: SettingsView(store: settingsStore))
+            rootView: SettingsView(store: settingsStore, achievementStore: achievementStore))
 
         dashboardPopover.contentSize = NSSize(width: 530, height: 450)
         // Keep Dashboard open when reward clicks open the companion details
@@ -352,6 +352,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func enqueueReminderBurst(for item: ReminderItem) {
+        // Keep every release in order while the current reminder is visible.
         queuedReminderBursts.append(item)
         showNextReminderBurstIfNeeded()
     }
@@ -484,10 +485,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quitMenuPanel?.close()
         quitMenuPanel = nil
         homePopover.performClose(nil)
-        reminderBurstPanel?.close()
-        reminderBurstPanel = nil
-        queuedReminderBursts.removeAll()
-        isShowingReminderBurst = false
+        // Screen clicks dismiss app controls, but each reminder stays for its
+        // full animation and then advances to the next queued reminder.
         presentationState.isSettingsShown = false
         presentationState.isDashboardShown = false
     }

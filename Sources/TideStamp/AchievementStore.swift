@@ -27,14 +27,26 @@ final class AchievementStore: ObservableObject {
         }
     }
 
+    // One shared threshold drives every reward marker and updates the dashboard
+    // immediately when the user changes the goal in Settings.
+    @Published private(set) var rewardThresholdPercent: Int {
+        didSet {
+            userDefaults.set(rewardThresholdPercent, forKey: rewardThresholdStorageKey)
+        }
+    }
+
     private let storageKey = "achievementProgressByDay"
     private let itemCatalogStorageKey = "trackedReminderItems"
+    private let rewardThresholdStorageKey = "rewardThresholdPercent"
     private let userDefaults: UserDefaults
     private let calendar: Calendar
 
-    init(userDefaults: UserDefaults = .standard, calendar: Calendar = .current) {
+    init(userDefaults: UserDefaults = AppPreferences.shared, calendar: Calendar = .current) {
         self.userDefaults = userDefaults
         self.calendar = calendar
+        // Keep the existing 50% behavior until a goal is explicitly saved.
+        let savedThreshold = userDefaults.object(forKey: rewardThresholdStorageKey) as? Int ?? 50
+        self.rewardThresholdPercent = min(max(savedThreshold, 1), 100)
 
         if let data = userDefaults.data(forKey: storageKey),
            let progress = try? JSONDecoder().decode([String: [String: AchievementProgress]].self, from: data) {
@@ -114,6 +126,11 @@ final class AchievementStore: ObservableObject {
         return progressByDay[dayKey]?.values.contains { $0.completed > 0 } ?? false
     }
 
+    func setRewardThresholdPercent(_ percent: Int) {
+        // Clamp here so every caller preserves a meaningful percentage.
+        rewardThresholdPercent = min(max(percent, 1), 100)
+    }
+
     func earnedReward(on date: Date, asOf currentDate: Date = Date()) -> Bool {
         guard calendar.startOfDay(for: date) < calendar.startOfDay(for: currentDate) else {
             return false
@@ -127,9 +144,10 @@ final class AchievementStore: ObservableObject {
         let releasedCount = dailyProgress.reduce(0) { $0 + $1.released }
         let completedCount = dailyProgress.reduce(0) { $0 + $1.completed }
 
-        // Rewards are decided only after a day is over. Completing at least
-        // half of the released notifications earns that day's reward image.
-        return releasedCount > 0 && completedCount * 2 >= releasedCount
+        // Rewards are decided after a day is over. Use integer arithmetic so
+        // percentages at the boundary behave the same for every day.
+        return releasedCount > 0
+            && completedCount * 100 >= releasedCount * rewardThresholdPercent
     }
 
     private func updateProgress(

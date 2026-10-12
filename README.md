@@ -10,6 +10,9 @@ swift run TideStamp
 ```
 
 ## Data Management 
+Quit TideStamp before deleting preferences. To reset all reminders, progress,
+and the badge goal, run `defaults delete TideStamp`.
+
 1. Current reminder settings
 - key: `reminderItems`
 - stored: id, title, intervalMinutes
@@ -24,6 +27,11 @@ swift run TideStamp
 - key: `trackedReminderItems`
 - stored: id, title, intervalMinutes, firstActiveDay, deletedDay
 - To delete: `defaults delete TideStamp trackedReminderItems`
+
+4. Reward achievement goal
+- key: `rewardThresholdPercent`
+- stored: required completion percentage (defaults to 50)
+- To reset: `defaults delete TideStamp rewardThresholdPercent`
 
 ## To manually quit and reopne
 1. `killall TideStamp`
